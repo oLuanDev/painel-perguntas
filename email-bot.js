@@ -49,30 +49,55 @@ async function saveProcessedIds(set) {
 }
 
 /**
- * Detecta se o e-mail pertence a GGMAX ou GameMarket pelo remetente e assunto
+ * Detecta se o e-mail é EXCLUSIVAMENTE uma pergunta (ignora vendas, pedidos e pagamentos)
  */
-export function detectPlatform(fromText, subjectText) {
+export function detectPlatform(fromText, subjectText, bodyText = '') {
   const from = (fromText || '').toLowerCase();
   const subject = (subjectText || '').toLowerCase();
+  const body = (bodyText || '').toLowerCase();
 
-  // 1. GGMAX
-  if (
-    from.includes('ggmax') ||
-    subject.includes('ggmax') ||
-    (from.includes('ggmax') && subject.includes('pergunta')) ||
-    subject.includes('você recebeu uma pergunta') ||
-    subject.includes('você recebeu uma nova pergunta')
-  ) {
-    return 'ggmax';
+  // 1. BLOQUEIO TOTAL: E-mails de Vendas, Pedidos, Pagamentos ou Entregas
+  const isSaleOrOrder =
+    subject.includes('venda') ||
+    subject.includes('vendeu') ||
+    subject.includes('pedido') ||
+    subject.includes('pagamento') ||
+    subject.includes('compra') ||
+    subject.includes('aprovado') ||
+    subject.includes('entrega') ||
+    subject.includes('qualificação') ||
+    body.includes('você fez uma venda') ||
+    body.includes('você vendeu') ||
+    body.includes('vendido com sucesso') ||
+    body.includes('realizar a entrega') ||
+    body.includes('orders/');
+
+  if (isSaleOrOrder) {
+    // É uma notificação de venda/pedido -> NÃO É PERGUNTA!
+    return null;
   }
 
-  // 2. GameMarket
-  if (
-    from.includes('gamemarket') ||
-    subject.includes('gamemarket') ||
-    subject.includes('nova pergunta')
-  ) {
-    return 'gamemarket';
+  // 2. GGMAX - Somente se for especificamente NOTIFICAÇÃO DE PERGUNTA
+  if (from.includes('ggmax') || subject.includes('ggmax')) {
+    const isGgmaxQuestion =
+      subject.includes('pergunta') ||
+      body.includes('você recebeu uma nova pergunta') ||
+      body.includes('received-questions');
+
+    if (isGgmaxQuestion) {
+      return 'ggmax';
+    }
+  }
+
+  // 3. GameMarket - Somente se for especificamente NOTIFICAÇÃO DE PERGUNTA
+  if (from.includes('gamemarket') || subject.includes('gamemarket')) {
+    const isGmQuestion =
+      subject.includes('pergunta') ||
+      body.includes('nova pergunta');
+
+    if (isGmQuestion) {
+      return 'gamemarket';
+    }
   }
 
   return null;
@@ -286,10 +311,11 @@ export async function startBot() {
           const parsed = await simpleParser(message.source);
           const fromText = parsed.from ? parsed.from.text : '';
           const subjectText = parsed.subject || '';
+          const bodyText = `${parsed.text || ''}\n${parsed.html || ''}`;
 
           console.log(`[BOT] 🔎 Inspecionando: [De: ${fromText}] [Assunto: ${subjectText}]`);
 
-          const platform = detectPlatform(fromText, subjectText);
+          const platform = detectPlatform(fromText, subjectText, bodyText);
 
           if (platform) {
             console.log(`[BOT] 🎯 Pergunta detectada! Plataforma: [${platform.toUpperCase()}]`);
