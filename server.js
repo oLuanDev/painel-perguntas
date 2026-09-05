@@ -58,7 +58,13 @@ app.get('/api/questions', async (req, res) => {
   res.json(sorted);
 });
 
-// 2. POST /api/questions - Add/Update a question
+// Helper to normalize announcement link for deduplication
+function normalizeLink(link) {
+  if (!link) return '';
+  return link.replace(/[\]\)\>\s]+$/, '').trim().toLowerCase();
+}
+
+// 2. POST /api/questions - Add/Update a question with strict deduplication
 app.post('/api/questions', async (req, res) => {
   const { id, platform, receivedAt, buyerName, announcementName, announcementLink, answerLink } = req.body;
 
@@ -66,37 +72,48 @@ app.post('/api/questions', async (req, res) => {
     return res.status(400).json({ error: 'Faltando campos obrigatórios no payload.' });
   }
 
+  // Limpa caracteres indesejados como colchetes de markdown ] no final do link ou título
+  const cleanAnnouncementLink = (announcementLink || '').replace(/[\]\)\>\s]+$/, '').trim();
+  const cleanAnswerLink = (answerLink || '').replace(/[\]\)\>\s]+$/, '').trim();
+  const cleanTitle = (announcementName || '').replace(/[\[\]\\]/g, '').trim();
+
   const questions = await readQuestions();
-  const existingIndex = questions.findIndex(q => q.id === id);
+
+  // DEDUPLICAÇÃO INTELIGENTE:
+  // Se já existe uma pergunta com o mesmo ID OU para o mesmo anúncio pendente, não cria card duplicado!
+  const existingIndex = questions.findIndex(q =>
+    q.id === id ||
+    (normalizeLink(q.announcementLink) === normalizeLink(cleanAnnouncementLink) && q.status === 'pending')
+  );
 
   const timestamp = receivedAt || new Date().toISOString();
 
   let questionObj;
 
   if (existingIndex !== -1) {
-    // Question already exists, update its info but preserve status unless explicitly passed
+    // Atualiza a pergunta existente sem duplicar na tela
     const existing = questions[existingIndex];
     questionObj = {
       ...existing,
       platform,
       receivedAt: timestamp,
       buyerName,
-      announcementName,
-      announcementLink,
-      answerLink,
+      announcementName: cleanTitle,
+      announcementLink: cleanAnnouncementLink,
+      answerLink: cleanAnswerLink,
       status: req.body.status || existing.status || 'pending'
     };
     questions[existingIndex] = questionObj;
   } else {
-    // New question
+    // Nova pergunta única
     questionObj = {
       id,
       platform,
       receivedAt: timestamp,
       buyerName,
-      announcementName,
-      announcementLink,
-      answerLink,
+      announcementName: cleanTitle,
+      announcementLink: cleanAnnouncementLink,
+      answerLink: cleanAnswerLink,
       status: req.body.status || 'pending'
     };
     questions.push(questionObj);
@@ -104,7 +121,6 @@ app.post('/api/questions', async (req, res) => {
 
   await writeQuestions(questions);
 
-  // Broadcast to all active clients
   broadcast({
     type: existingIndex !== -1 ? 'question_updated' : 'question_new',
     question: questionObj

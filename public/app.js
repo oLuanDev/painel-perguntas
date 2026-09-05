@@ -40,7 +40,6 @@ const connectionText = document.getElementById('connection-text');
 const soundToggle = document.getElementById('sound-toggle');
 const soundIcon = document.getElementById('sound-icon');
 const soundText = document.getElementById('sound-text');
-const simBtn = document.getElementById('sim-btn');
 const tabPending = document.getElementById('tab-pending');
 const tabAnswered = document.getElementById('tab-answered');
 const badgePendingCount = document.getElementById('badge-pending-count');
@@ -537,47 +536,7 @@ function connectSSE() {
   };
 }
 
-// Simulator Trigger (Makes mock POST call to Express API)
-simBtn.addEventListener('click', async () => {
-  const mockId = 'mock-' + Math.floor(100000 + Math.random() * 900000);
-  const platforms = ['ggmax', 'gamemarket'];
-  const plat = platforms[Math.floor(Math.random() * platforms.length)];
-  const names = ['Guilherme Rossi', 'Ana Paula', 'Carlos Eduardo', 'Patrícia Lima', 'Renato Garcia'];
-  const name = names[Math.floor(Math.random() * names.length)];
-  const items = [
-    '[MAIS BARATO] GEMINI 3 PRO + 1K FLOW+ 5TB + VEO 3.1 + ANTIGRAVITY - 30 DIAS',
-    'Conta Valorant Imortal 3 + Vandal Sublime e Skins Exclusivas',
-    'Saldo de R$ 100 para compras in-game GGMAX',
-    'Chave de ativação Steam - GTA V Premium Edition',
-    'Boost do Ferro ao Diamante League of Legends'
-  ];
-  const item = items[Math.floor(Math.random() * items.length)];
 
-  // Randomize arrival time to demonstrate SLA countdown colors
-  const timeOffsets = [0, 20 * 60 * 1000, 48 * 60 * 1000, 65 * 60 * 1000];
-  const offset = timeOffsets[Math.floor(Math.random() * timeOffsets.length)];
-  const receivedAt = new Date(Date.now() - offset).toISOString();
-
-  const mockPayload = {
-    id: mockId,
-    platform: plat,
-    receivedAt,
-    buyerName: name,
-    announcementName: item,
-    announcementLink: `https://${plat}.com.br/anuncio/detalhes-${mockId}`,
-    answerLink: plat === 'ggmax' ? 'https://ggmax.com.br/account/received-questions' : `https://${plat}.com.br/painel/perguntas`
-  };
-
-  try {
-    await fetch('/api/questions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mockPayload)
-    });
-  } catch (err) {
-    console.error('Falha de rede ao simular pergunta:', err);
-  }
-});
 
 // Clear All Questions and re-trigger bot check
 const clearAllBtn = document.getElementById('clear-all-btn');

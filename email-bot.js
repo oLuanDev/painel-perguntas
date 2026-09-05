@@ -93,29 +93,25 @@ export function parseEmailContent(platform, parsedMail) {
   let buyerName = '';
 
   if (platform === 'ggmax') {
-    // 1. Extração do link do anúncio GGMAX
-    const linkMatch = combined.match(/https?:\/\/(?:www\.)?ggmax\.com\.br\/anuncio\/[^\s"')<>]+/i);
+    // 1. Extração limpa do link do anúncio GGMAX (sem capturar ] ou pontuação)
+    const linkMatch = combined.match(/https?:\/\/(?:www\.)?ggmax\.com\.br\/anuncio\/[a-zA-Z0-9\-_]+/i);
     if (linkMatch) {
       announcementLink = linkMatch[0];
     } else {
       announcementLink = 'https://ggmax.com.br/account/received-questions';
     }
 
-    // 2. Extração do link para responder
-    if (combined.includes('ggmax.com.br/account/received-questions')) {
-      answerLink = 'https://ggmax.com.br/account/received-questions';
-    } else {
-      answerLink = announcementLink;
-    }
+    // 2. Link direto para responder
+    answerLink = 'https://ggmax.com.br/account/received-questions';
 
-    // 3. Extração do título do anúncio (trata títulos com colchetes internos como [MAIS BARATO])
-    const markdownMatch = text.match(/Anúncio:\s*\[(.+)\]\s*\(https?:\/\//i);
+    // 3. Extração limpa do título do anúncio
+    const markdownMatch = text.match(/Anúncio:\s*\[?(.+?)\]?\s*\(https?:\/\//i);
     if (markdownMatch && markdownMatch[1] && markdownMatch[1].trim().length > 3) {
       announcementName = markdownMatch[1].trim();
     } else {
       const lineMatch = text.match(/Anúncio:\s*([^\n\r]+)/i);
       if (lineMatch && lineMatch[1]) {
-        announcementName = lineMatch[1].replace(/\]\([^\)]+\)/g, '').replace(/^\[+|\]+$/g, '').trim();
+        announcementName = lineMatch[1].trim();
       } else if (announcementLink.includes('/anuncio/')) {
         const slug = announcementLink.split('/anuncio/')[1]?.split('?')[0] || '';
         announcementName = slug.replace(/-/g, ' ').toUpperCase();
@@ -124,21 +120,22 @@ export function parseEmailContent(platform, parsedMail) {
       }
     }
 
+    // Remove colchetes ou barras invertidas do título
+    announcementName = announcementName.replace(/[\[\]\\]/g, '').trim();
+
     // 4. Nome do comprador
     buyerName = 'Possível Comprador (GGMAX)';
 
   } else if (platform === 'gamemarket') {
     // 1. Extração de links da GameMarket
-    const gmLinkMatch = combined.match(/https?:\/\/(?:www\.)?gamemarket\.com\.br\/[^\s"')<>]+/i);
+    const gmLinkMatch = combined.match(/https?:\/\/(?:www\.)?gamemarket\.com\.br\/[a-zA-Z0-9\-_/]+/i);
     if (gmLinkMatch) {
-      announcementLink = gmLinkMatch[0];
+      announcementLink = gmLinkMatch[0].replace(/[\]\)\>\s]+$/, '');
     } else {
       announcementLink = 'https://gamemarket.com.br';
     }
 
-    // Procura link de resposta ou painel da GameMarket
-    const answerMatch = combined.match(/https?:\/\/(?:www\.)?gamemarket\.com\.br\/(?:painel|perguntas|responder|produto)[^\s"')<>]+/i);
-    answerLink = answerMatch ? answerMatch[0] : announcementLink;
+    answerLink = announcementLink;
 
     // 2. Extração do título do anúncio
     const gmTitleMatch = text.match(/(?:produto|anúncio|item):\s*(?:\[|\b)(.*?)(?:\]|\n|\r)/i);
@@ -150,15 +147,17 @@ export function parseEmailContent(platform, parsedMail) {
       announcementName = 'Produto GameMarket';
     }
 
-    // 3. Nome do comprador
+    announcementName = announcementName.replace(/[\[\]\\]/g, '').trim();
     buyerName = 'Possível Comprador (GameMarket)';
   }
 
-  // Gera um ID único e consistente
+  // Gera um ID único e consistente por anúncio (evita perguntas repetidas para o mesmo anúncio)
+  const slugPart = announcementLink.includes('/anuncio/')
+    ? announcementLink.split('/anuncio/')[1]
+    : announcementName.slice(0, 25).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const uniqueId = `${platform}-${slugPart}`;
+
   const dateObj = parsedMail.date ? new Date(parsedMail.date) : new Date();
-  const timeKey = dateObj.getTime();
-  const cleanTitle = announcementName.slice(0, 15).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  const uniqueId = `${platform}-${cleanTitle}-${timeKey}`;
 
   return {
     id: uniqueId,
