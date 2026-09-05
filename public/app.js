@@ -1,8 +1,30 @@
 // Global State
 let questions = [];
 let activeTab = 'questions'; // 'questions', 'mediations', or 'resolved'
-let soundEnabled = false;
+let soundEnabled = localStorage.getItem('fastdash_sound') !== 'false'; // ATIVADO POR PADRÃO!
 let audioContext = null;
+
+// Audio Unlock: desbloqueia AudioContext e SpeechSynthesis na primeira interação do usuário
+function unlockAudio() {
+  try {
+    if (!audioContext) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioContext = new AudioContextClass();
+      }
+    }
+    if (audioContext && audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+    if ('speechSynthesis' in window && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+  } catch (e) {}
+}
+
+window.addEventListener('click', unlockAudio, { once: true });
+window.addEventListener('touchstart', unlockAudio, { once: true });
+window.addEventListener('keydown', unlockAudio, { once: true });
 
 // Clock Brasília (America/Sao_Paulo UTC-3) and Uptime Counter
 const startTime = Date.now();
@@ -88,9 +110,27 @@ const emptyStateTitle = document.getElementById('empty-state-title');
 const emptyStateDesc = document.getElementById('empty-state-desc');
 const questionsContainer = document.getElementById('questions-container');
 
+// Sound UI state synchronizer
+function updateSoundUI() {
+  if (soundEnabled) {
+    if (soundIcon) soundIcon.className = 'fa-solid fa-volume-high text-emerald-400';
+    if (soundText) soundText.textContent = 'Som Ativado';
+    if (soundToggle) soundToggle.className = 'flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-950/30 hover:bg-emerald-950/50 active:scale-95 border border-emerald-500/30 px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs sm:text-sm text-emerald-400 transition-all';
+  } else {
+    if (soundIcon) soundIcon.className = 'fa-solid fa-volume-xmark text-slate-500';
+    if (soundText) soundText.textContent = 'Som Desativado';
+    if (soundToggle) soundToggle.className = 'flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-brand-card hover:bg-slate-800 active:scale-95 border border-brand-border px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs sm:text-sm text-slate-300 hover:text-white transition-all';
+  }
+}
+
+// Inicializa visual do botão de som conforme estado salvo
+updateSoundUI();
+
 // Audio & Voice Alert: Fala em voz alta conforme o tipo de evento
 function playAlertSound(customText = 'Pergunta realizada!') {
   if (!soundEnabled) return;
+
+  unlockAudio();
 
   // 1. Chime inicial sutil
   try {
@@ -139,25 +179,15 @@ function playAlertSound(customText = 'Pergunta realizada!') {
   }
 }
 
-// Sound Activation
+// Sound Activation Toggle
 soundToggle.addEventListener('click', () => {
   soundEnabled = !soundEnabled;
+  localStorage.setItem('fastdash_sound', soundEnabled ? 'true' : 'false');
+  updateSoundUI();
+
   if (soundEnabled) {
-    if (!audioContext) {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      audioContext = new AudioContextClass();
-    }
-    audioContext.resume();
-
-    soundIcon.className = 'fa-solid fa-volume-high text-emerald-400';
-    soundText.textContent = 'Som Ativado';
-    soundToggle.className = 'flex items-center gap-2 bg-emerald-950/30 hover:bg-emerald-950/50 border border-emerald-500/30 px-3.5 py-1.5 rounded-lg text-sm text-emerald-400 transition-all';
-
+    unlockAudio();
     playAlertSound('Alerta sonoro ativado!');
-  } else {
-    soundIcon.className = 'fa-solid fa-volume-xmark text-slate-500';
-    soundText.textContent = 'Som Desativado';
-    soundToggle.className = 'flex items-center gap-2 bg-brand-card hover:bg-slate-800 border border-brand-border px-3.5 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white transition-all';
   }
 });
 
