@@ -51,51 +51,52 @@ const statsUrgent = document.getElementById('stats-urgent');
 const emptyState = document.getElementById('empty-state');
 const questionsContainer = document.getElementById('questions-container');
 
-// Audio Synthesizer using Web Audio API
-function playChime() {
+// Audio & Voice Alert: Fala "Pergunta realizada!" em voz alta
+function playAlertSound(customText = 'Pergunta realizada!') {
   if (!soundEnabled) return;
-  
+
+  // 1. Chime inicial sutil
   try {
     if (!audioContext) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       audioContext = new AudioContextClass();
     }
-    
     if (audioContext.state === 'suspended') {
       audioContext.resume();
     }
-
     const now = audioContext.currentTime;
-    
-    // First high note (Soft bell chime)
-    const osc1 = audioContext.createOscillator();
-    const gain1 = audioContext.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(830.61, now);
-    gain1.gain.setValueAtTime(0, now);
-    gain1.gain.linearRampToValueAtTime(0.15, now + 0.05);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
-    osc1.connect(gain1);
-    gain1.connect(audioContext.destination);
-    
-    // Second note (Harmonic tone)
-    const osc2 = audioContext.createOscillator();
-    const gain2 = audioContext.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(1046.50, now + 0.08);
-    gain2.gain.setValueAtTime(0, now + 0.08);
-    gain2.gain.linearRampToValueAtTime(0.2, now + 0.12);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
-    osc2.connect(gain2);
-    gain2.connect(audioContext.destination);
-    
-    osc1.start(now);
-    osc1.stop(now + 0.4);
-    
-    osc2.start(now + 0.08);
-    osc2.stop(now + 0.7);
-  } catch (e) {
-    console.error('Falha ao reproduzir áudio via Web Audio API:', e);
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, now);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  } catch (e) {}
+
+  // 2. Voz em português brasileiro: "Pergunta realizada!"
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(customText);
+      utterance.lang = 'pt-BR';
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+
+      // Procura voz em português do Brasil
+      const voices = window.speechSynthesis.getVoices();
+      const ptVoice = voices.find(v => v.lang === 'pt-BR' || v.lang === 'pt_BR' || v.lang.startsWith('pt'));
+      if (ptVoice) {
+        utterance.voice = ptVoice;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.error('Erro no sintetizador de voz:', err);
+    }
   }
 }
 
@@ -108,12 +109,13 @@ soundToggle.addEventListener('click', () => {
       audioContext = new AudioContextClass();
     }
     audioContext.resume();
-    
+
     soundIcon.className = 'fa-solid fa-volume-high text-emerald-400';
     soundText.textContent = 'Som Ativado';
     soundToggle.className = 'flex items-center gap-2 bg-emerald-950/30 hover:bg-emerald-950/50 border border-emerald-500/30 px-3.5 py-1.5 rounded-lg text-sm text-emerald-400 transition-all';
-    
-    playChime();
+
+    // Avisa que o som foi ativado com voz
+    playAlertSound('Alerta sonoro ativado!');
   } else {
     soundIcon.className = 'fa-solid fa-volume-xmark text-slate-500';
     soundText.textContent = 'Som Desativado';
@@ -143,6 +145,18 @@ function getRelativeTime(isoString) {
   
   const diffDays = Math.floor(diffHours / 24);
   return `há ${diffDays}d`;
+}
+
+// Format ISO date to Brasília Timezone (HH:mm:ss)
+function formatBrasiliaMadeTime(receivedAtIso) {
+  const receivedDate = new Date(receivedAtIso);
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(receivedDate);
 }
 
 // Format ISO date to Brasília Timezone (HH:mm)
@@ -265,8 +279,8 @@ async function fetchQuestions(isBackgroundSync = false) {
         const brandNew = updatedList.filter(q => !existingIds.has(q.id) && q.status === 'pending');
 
         if (brandNew.length > 0) {
-          console.log(`[REALTIME] 🔔 ${brandNew.length} nova(s) pergunta(s) recebida(s)! Tocando alerta sonoro...`);
-          playChime();
+          console.log(`[REALTIME] 🔔 ${brandNew.length} nova(s) pergunta(s) recebida(s)! Falando alerta...`);
+          playAlertSound('Pergunta realizada!');
         }
       }
 
@@ -356,14 +370,19 @@ function renderUI() {
       
       <div>
         <!-- Top header details -->
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-start justify-between gap-2 mb-3">
           <span class="text-xs px-2.5 py-1 rounded-full border font-bold ${badgeColorClass}">
             ${platformLabel}
           </span>
-          <span class="text-xs text-slate-400 flex items-center gap-1.5" data-time="${q.receivedAt}">
-            <i class="fa-regular fa-clock"></i>
-            ${getRelativeTime(q.receivedAt)}
-          </span>
+          <div class="text-right">
+            <div class="text-xs font-bold text-slate-200 flex items-center justify-end gap-1.5">
+              <i class="fa-regular fa-clock text-emerald-400"></i>
+              Feita às ${formatBrasiliaMadeTime(q.receivedAt)}
+            </div>
+            <div class="text-[10px] text-slate-400 mt-0.5" data-time="${q.receivedAt}">
+              (${getRelativeTime(q.receivedAt)})
+            </div>
+          </div>
         </div>
 
         <!-- 1-Hour SLA Countdown Section (Only for pending) -->
@@ -498,7 +517,7 @@ function connectSSE() {
       if (data.type === 'question_new') {
         questions.unshift(data.question);
         renderUI();
-        playChime();
+        playAlertSound('Pergunta realizada!');
       } else if (data.type === 'question_updated') {
         const index = questions.findIndex(q => q.id === data.question.id);
         if (index !== -1) {
