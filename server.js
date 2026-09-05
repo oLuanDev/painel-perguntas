@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { startBot } from './email-bot.js';
+import { startBot, resetProcessedIds, forceMailboxCheck } from './email-bot.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -139,6 +139,36 @@ app.patch('/api/questions/:id', async (req, res) => {
   });
 
   res.json(questions[index]);
+});
+
+// 4. DELETE /api/questions/:id - Excluir uma pergunta específica
+app.delete('/api/questions/:id', async (req, res) => {
+  const { id } = req.params;
+  let questions = await readQuestions();
+  const initialLength = questions.length;
+  questions = questions.filter(q => q.id !== id);
+
+  if (questions.length === initialLength) {
+    return res.status(404).json({ error: 'Pergunta não encontrada.' });
+  }
+
+  await writeQuestions(questions);
+  broadcast({ type: 'question_deleted', id });
+  res.json({ success: true, message: 'Pergunta excluída com sucesso.' });
+});
+
+// 5. DELETE /api/questions - Limpar todas as perguntas e reiniciar teste do bot
+app.delete('/api/questions', async (req, res) => {
+  await writeQuestions([]);
+  await resetProcessedIds();
+  broadcast({ type: 'questions_cleared' });
+
+  // Força uma nova checagem imediata no e-mail
+  forceMailboxCheck().catch(err => {
+    console.error('[BOT] Erro ao forçar checagem após limpeza:', err.message);
+  });
+
+  res.json({ success: true, message: 'Todas as perguntas foram apagadas! O bot está relendo seu e-mail agora mesmo.' });
 });
 
 // 4. GET /api/questions/stream - Server-Sent Events endpoint

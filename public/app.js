@@ -408,11 +408,17 @@ function renderUI() {
 
       <!-- Action Footer -->
       <div class="pt-4 border-t border-brand-border/60 flex flex-col gap-3">
-        <!-- Mark as answered checkbox row -->
-        <label class="flex items-center gap-2.5 cursor-pointer select-none text-xs text-slate-400 hover:text-slate-200 w-fit">
-          <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 rounded border-brand-border text-emerald-600 focus:ring-emerald-500 bg-slate-900 border" onclick="event.preventDefault(); window.handleCheckClick('${q.id}', '${q.status}')">
-          <span>${isChecked ? 'Respondida (Mover para Pendentes)' : 'Marcar como Respondida'}</span>
-        </label>
+        <!-- Mark as answered checkbox row & Delete button -->
+        <div class="flex items-center justify-between gap-2">
+          <label class="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-400 hover:text-slate-200">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 rounded border-brand-border text-emerald-600 focus:ring-emerald-500 bg-slate-900 border" onclick="event.preventDefault(); window.handleCheckClick('${q.id}', '${q.status}')">
+            <span>${isChecked ? 'Mover para Pendentes' : 'Marcar Respondida'}</span>
+          </label>
+          <button onclick="window.handleDeleteClick('${q.id}')" class="text-xs text-rose-400/60 hover:text-rose-400 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-rose-500/10" title="Excluir esta pergunta">
+            <i class="fa-regular fa-trash-can"></i>
+            <span>Excluir</span>
+          </button>
+        </div>
 
         <!-- Big CTA Button -->
         <a href="${q.answerLink}" target="_blank" class="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg hover:shadow-emerald-500/10 text-xs transition-all tracking-wider uppercase">
@@ -429,6 +435,20 @@ function renderUI() {
 // Global hook for inline checkbox clicks
 window.handleCheckClick = (id, currentStatus) => {
   toggleQuestionStatus(id, currentStatus);
+};
+
+// Global hook for deleting an individual question
+window.handleDeleteClick = async (id) => {
+  if (!confirm('Deseja excluir esta pergunta?')) return;
+  try {
+    const res = await fetch(`/api/questions/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      questions = questions.filter(q => q.id !== id);
+      renderUI();
+    }
+  } catch (err) {
+    console.error('Erro ao excluir pergunta:', err);
+  }
 };
 
 // Periodic relative time labels refresher
@@ -474,7 +494,7 @@ function connectSSE() {
   source.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      
+
       if (data.type === 'question_new') {
         questions.unshift(data.question);
         renderUI();
@@ -486,6 +506,12 @@ function connectSSE() {
         } else {
           questions.unshift(data.question);
         }
+        renderUI();
+      } else if (data.type === 'question_deleted') {
+        questions = questions.filter(q => q.id !== data.id);
+        renderUI();
+      } else if (data.type === 'questions_cleared') {
+        questions = [];
         renderUI();
       }
     } catch (e) {}
@@ -533,6 +559,28 @@ simBtn.addEventListener('click', async () => {
     console.error('Falha de rede ao simular pergunta:', err);
   }
 });
+
+// Clear All Questions and re-trigger bot check
+const clearAllBtn = document.getElementById('clear-all-btn');
+if (clearAllBtn) {
+  clearAllBtn.addEventListener('click', async () => {
+    const ok = confirm('Deseja apagar todas as perguntas e fazer o bot varrer a sua caixa de entrada do Gmail novamente?');
+    if (!ok) return;
+
+    try {
+      const res = await fetch('/api/questions', { method: 'DELETE' });
+      if (res.ok) {
+        questions = [];
+        renderUI();
+        alert('Todas as perguntas foram limpas! O bot já está relendo o seu e-mail da GGMAX e GameMarket...');
+        // Força sincronização após 3 segundos
+        setTimeout(() => fetchQuestions(true), 3000);
+      }
+    } catch (err) {
+      console.error('Erro ao limpar perguntas:', err);
+    }
+  });
+}
 
 // App Startup
 fetchQuestions();

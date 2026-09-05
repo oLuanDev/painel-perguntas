@@ -14,6 +14,22 @@ const PROCESSED_IDS_FILE = path.join(__dirname, 'processed-emails.json');
 const PORT = process.env.PORT || 3000;
 const API_URL = process.env.API_URL || `http://localhost:${PORT}/api/questions`;
 
+let activeProcessedIds = new Set();
+let checkMailboxFn = null;
+
+export async function resetProcessedIds() {
+  activeProcessedIds.clear();
+  await saveProcessedIds(activeProcessedIds);
+  console.log('[BOT] 🔄 Memória de e-mails processados foi zerada com sucesso!');
+}
+
+export async function forceMailboxCheck() {
+  if (checkMailboxFn) {
+    console.log('[BOT] ⚡ Executando varredura imediata dos e-mails a pedido do usuário...');
+    await checkMailboxFn();
+  }
+}
+
 // Load previously processed email message IDs to avoid duplicates
 async function loadProcessedIds() {
   try {
@@ -193,7 +209,7 @@ export async function startBot() {
     return;
   }
 
-  const processedIds = await loadProcessedIds();
+  activeProcessedIds = await loadProcessedIds();
 
   const client = new ImapFlow({
     host: process.env.IMAP_HOST || 'imap.gmail.com',
@@ -264,7 +280,7 @@ export async function startBot() {
       if (messages) {
         for await (const message of messages) {
           const msgId = message.envelope.messageId || `${message.uid}`;
-          if (processedIds.has(msgId)) {
+          if (activeProcessedIds.has(msgId)) {
             continue;
           }
 
@@ -283,8 +299,8 @@ export async function startBot() {
             const ok = await sendToApi(payload);
 
             if (ok) {
-              processedIds.add(msgId);
-              await saveProcessedIds(processedIds);
+              activeProcessedIds.add(msgId);
+              await saveProcessedIds(activeProcessedIds);
               console.log(`[BOT] 🎉 Pergunta "${payload.announcementName}" adicionada com sucesso ao painel!`);
             }
           }
@@ -296,6 +312,9 @@ export async function startBot() {
       lock.release();
     }
   }
+
+  // Registra a função para checagem manual via API
+  checkMailboxFn = checkMailbox;
 
   // Tratamento de reconexão contínua
   client.on('error', err => {
