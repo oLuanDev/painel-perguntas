@@ -41,8 +41,9 @@ export function detectPlatform(fromText, subjectText) {
 
   // 1. GGMAX
   if (
-    from.includes('ggmax.com.br') ||
+    from.includes('ggmax') ||
     subject.includes('ggmax') ||
+    (from.includes('ggmax') && subject.includes('pergunta')) ||
     subject.includes('você recebeu uma pergunta') ||
     subject.includes('você recebeu uma nova pergunta')
   ) {
@@ -51,9 +52,9 @@ export function detectPlatform(fromText, subjectText) {
 
   // 2. GameMarket
   if (
-    from.includes('gamemarket.com.br') ||
+    from.includes('gamemarket') ||
     subject.includes('gamemarket') ||
-    subject.includes('nova pergunta sobre seu produto')
+    subject.includes('nova pergunta')
   ) {
     return 'gamemarket';
   }
@@ -205,54 +206,87 @@ export async function startBot() {
   async function checkMailbox() {
     let lock = await client.getMailboxLock('INBOX');
     try {
-      // Obtém o número total de mensagens na caixa de entrada
-      const status = await client.status('INBOX', { messages: true });
-      const totalMessages = status.messages || 0;
+      console.log('[BOT] 🔍 Buscando e-mails de GGMAX, GameMarket ou mensagens não lidas...');
+
+      let targetUids = new Set();
+
+      // 1. Busca por remetente ggmax
+      try {
+        const uidsGgmax = await client.search({ header: ['from', 'ggmax'] });
+        if (uidsGgmax && uidsGgmax.length) {
+          uidsGgmax.forEach(u => targetUids.add(u));
+          console.log(`[BOT] 📬 E-mails com 'ggmax' encontrados: ${uidsGgmax.length}`);
+        }
+      } catch (e) {}
+
+      // 2. Busca por remetente gamemarket
+      try {
+        const uidsGm = await client.search({ header: ['from', 'gamemarket'] });
+        if (uidsGm && uidsGm.length) {
+          uidsGm.forEach(u => targetUids.add(u));
+          console.log(`[BOT] 📬 E-mails com 'gamemarket' encontrados: ${uidsGm.length}`);
+        }
+      } catch (e) {}
+
+      // 3. Busca por e-mails não lidos
+      try {
+        const uidsUnread = await client.search({ seen: false });
+        if (uidsUnread && uidsUnread.length) {
+          uidsUnread.forEach(u => targetUids.add(u));
+          console.log(`[BOT] 📬 E-mails não lidos encontrados: ${uidsUnread.length}`);
+        }
+      } catch (e) {}
 
       let messages;
-      if (totalMessages > 0) {
-        // Busca as últimas 30 mensagens recebidas
-        const startSeq = Math.max(1, totalMessages - 30);
-        messages = client.fetch(`${startSeq}:*`, {
+      if (targetUids.size > 0) {
+        // Busca as mensagens encontradas pelos filtros
+        messages = client.fetch([...targetUids], {
           uid: true,
           envelope: true,
           source: true,
           flags: true
         });
       } else {
-        messages = client.fetch({ seen: false }, {
-          uid: true,
-          envelope: true,
-          source: true,
-          flags: true
-        });
+        // Fallback: pega as últimas 30 mensagens da caixa
+        const status = await client.status('INBOX', { messages: true });
+        const total = status.messages || 0;
+        if (total > 0) {
+          const start = Math.max(1, total - 30);
+          messages = client.fetch(`${start}:*`, {
+            uid: true,
+            envelope: true,
+            source: true,
+            flags: true
+          });
+        }
       }
 
-      for await (const message of messages) {
-        const msgId = message.envelope.messageId || `${message.uid}`;
-        if (processedIds.has(msgId)) {
-          continue;
-        }
+      if (messages) {
+        for await (const message of messages) {
+          const msgId = message.envelope.messageId || `${message.uid}`;
+          if (processedIds.has(msgId)) {
+            continue;
+          }
 
-        const parsed = await simpleParser(message.source);
-        const fromText = parsed.from ? parsed.from.text : '';
-        const subjectText = parsed.subject || '';
+          const parsed = await simpleParser(message.source);
+          const fromText = parsed.from ? parsed.from.text : '';
+          const subjectText = parsed.subject || '';
 
-        const platform = detectPlatform(fromText, subjectText);
+          console.log(`[BOT] 🔎 Inspecionando: [De: ${fromText}] [Assunto: ${subjectText}]`);
 
-        if (platform) {
-          console.log(`[BOT] 📩 Pergunta encontrada! Plataforma: [${platform.toUpperCase()}]`);
-          console.log(`[BOT] De: ${fromText} | Assunto: ${subjectText}`);
+          const platform = detectPlatform(fromText, subjectText);
 
-          const payload = parseEmailContent(platform, parsed);
-          const ok = await sendToApi(payload);
+          if (platform) {
+            console.log(`[BOT] 🎯 Pergunta detectada! Plataforma: [${platform.toUpperCase()}]`);
 
-          if (ok) {
-            processedIds.add(msgId);
-            await saveProcessedIds(processedIds);
+            const payload = parseEmailContent(platform, parsed);
+            const ok = await sendToApi(payload);
 
-            // Marca como lido se desejado
-            await client.messageFlagsAdd({ uid: message.uid }, ['\\Seen']);
+            if (ok) {
+              processedIds.add(msgId);
+              await saveProcessedIds(processedIds);
+              console.log(`[BOT] 🎉 Pergunta "${payload.announcementName}" adicionada com sucesso ao painel!`);
+            }
           }
         }
       }
