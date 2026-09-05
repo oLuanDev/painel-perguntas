@@ -11,7 +11,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROCESSED_IDS_FILE = path.join(__dirname, 'processed-emails.json');
 
-const API_URL = process.env.API_URL || 'http://localhost:3000/api/questions';
+const PORT = process.env.PORT || 3000;
+const API_URL = process.env.API_URL || `http://localhost:${PORT}/api/questions`;
 
 // Load previously processed email message IDs to avoid duplicates
 async function loadProcessedIds() {
@@ -204,13 +205,28 @@ export async function startBot() {
   async function checkMailbox() {
     let lock = await client.getMailboxLock('INBOX');
     try {
-      // Procura e-mails recentes não lidos
-      const messages = client.fetch({ seen: false }, {
-        uid: true,
-        envelope: true,
-        source: true,
-        flags: true
-      });
+      // Obtém o número total de mensagens na caixa de entrada
+      const status = await client.status('INBOX', { messages: true });
+      const totalMessages = status.messages || 0;
+
+      let messages;
+      if (totalMessages > 0) {
+        // Busca as últimas 30 mensagens recebidas
+        const startSeq = Math.max(1, totalMessages - 30);
+        messages = client.fetch(`${startSeq}:*`, {
+          uid: true,
+          envelope: true,
+          source: true,
+          flags: true
+        });
+      } else {
+        messages = client.fetch({ seen: false }, {
+          uid: true,
+          envelope: true,
+          source: true,
+          flags: true
+        });
+      }
 
       for await (const message of messages) {
         const msgId = message.envelope.messageId || `${message.uid}`;
@@ -225,7 +241,7 @@ export async function startBot() {
         const platform = detectPlatform(fromText, subjectText);
 
         if (platform) {
-          console.log(`[BOT] 📩 Nova notificação de pergunta detectada! Plataforma: [${platform.toUpperCase()}]`);
+          console.log(`[BOT] 📩 Pergunta encontrada! Plataforma: [${platform.toUpperCase()}]`);
           console.log(`[BOT] De: ${fromText} | Assunto: ${subjectText}`);
 
           const payload = parseEmailContent(platform, parsed);
@@ -235,7 +251,7 @@ export async function startBot() {
             processedIds.add(msgId);
             await saveProcessedIds(processedIds);
 
-            // Marca o e-mail como lido no Gmail
+            // Marca como lido se desejado
             await client.messageFlagsAdd({ uid: message.uid }, ['\\Seen']);
           }
         }
@@ -259,19 +275,30 @@ export async function startBot() {
 
   console.log(`[BOT] Conectando a ${process.env.IMAP_HOST || 'imap.gmail.com'} como ${user}...`);
   await client.connect();
-  console.log(`[BOT] ✅ Conexão IMAP estabelecida com sucesso! Monitorando novas perguntas...`);
+  console.log(`[BOT] ✅ Conexão IMAP estabelecida com sucesso!`);
+  console.log(`[BOT] ⏱️ Monitoramento ativo: lendo a caixa de entrada a cada 2 minutos.`);
 
-  // Checagem inicial
+  // 1. Checagem inicial imediata
   await checkMailbox();
+
+  // 2. Checagem periódica a cada 2 minutos (120 segundos)
+  setInterval(async () => {
+    try {
+      if (client.usable) {
+        console.log('[BOT] ⏱️ [Ciclo de 2 min] Verificando e-mails da GGMAX e GameMarket...');
+        await checkMailbox();
+      }
+    } catch (err) {
+      console.error('[BOT] Erro na verificação periódica de 2 minutos:', err.message);
+    }
+  }, 2 * 60 * 1000);
 
   // Escuta contínua de novos e-mails via IDLE
   while (client.usable) {
     try {
-      console.log('[BOT] Aguardando novas mensagens em tempo real (IMAP IDLE)...');
       await client.idle();
       await checkMailbox();
     } catch (err) {
-      console.log('[BOT] Ciclo IDLE reiniciando...', err.message);
       await new Promise(r => setTimeout(r, 5000));
     }
   }
