@@ -77,15 +77,27 @@ async function readQuestions() {
     const data = await fs.readFile(DB_FILE, 'utf-8');
     const questions = JSON.parse(data);
     let changed = false;
-    // Auto-correção: se algum item foi salvo com intervenção cancelada mas ficou pendente, corrige para 'answered'
+    // Auto-correção: se algum item foi salvo com intervenção cancelada/finalizada mas ficou pendente, corrige para 'answered'
     questions.forEach(q => {
       if (q.status === 'pending') {
         const titleLower = (q.announcementName || '').toLowerCase();
         const descLower = (q.description || '').toLowerCase();
-        if (titleLower.includes('cancelad') || titleLower.includes('cancelou') || descLower.includes('cancelad') || descLower.includes('cancelou')) {
+        const isClosed =
+          titleLower.includes('cancelad') || titleLower.includes('cancelou') ||
+          titleLower.includes('finalizad') || titleLower.includes('finalizou') ||
+          titleLower.includes('encerrad') || titleLower.includes('encerrou') ||
+          titleLower.includes('resolvid') || titleLower.includes('resolveu') ||
+          titleLower.includes('concluid') || titleLower.includes('concluíd') ||
+          descLower.includes('cancelad') || descLower.includes('cancelou') ||
+          descLower.includes('finalizad') || descLower.includes('finalizou') ||
+          descLower.includes('encerrad') || descLower.includes('encerrou') ||
+          descLower.includes('resolvid') || descLower.includes('resolveu') ||
+          descLower.includes('concluid') || descLower.includes('concluíd');
+
+        if (isClosed) {
           q.status = 'answered';
           changed = true;
-          console.log(`[AUTO-FIX] Pedido ${q.orderId || q.id} corrigido de 'pending' para 'answered' (intervenção cancelada).`);
+          console.log(`[AUTO-FIX] Pedido ${q.orderId || q.id} corrigido de 'pending' para 'answered' (intervenção finalizada/cancelada).`);
         }
       }
     });
@@ -167,7 +179,14 @@ app.post('/api/questions', async (req, res) => {
   });
 
   const timestamp = receivedAt || new Date().toISOString();
-  const isResolving = req.body.action === 'resolve' || req.body.status === 'answered' || cleanTitle.toLowerCase().includes('cancelad');
+  const titleLower = cleanTitle.toLowerCase();
+  const isResolving = req.body.action === 'resolve' || 
+                      req.body.status === 'answered' || 
+                      titleLower.includes('cancelad') ||
+                      titleLower.includes('finalizad') ||
+                      titleLower.includes('encerrad') ||
+                      titleLower.includes('resolvid') ||
+                      titleLower.includes('concluid');
   const targetStatus = isResolving ? 'answered' : (req.body.status || 'pending');
 
   let questionObj;
@@ -175,6 +194,7 @@ app.post('/api/questions', async (req, res) => {
   if (existingIndex !== -1) {
     // Atualiza o item existente sem duplicar na tela
     const existing = questions[existingIndex];
+    const termLabel = titleLower.includes('finaliz') ? 'Finalizada' : 'Cancelada';
     questionObj = {
       ...existing,
       platform,
@@ -182,7 +202,7 @@ app.post('/api/questions', async (req, res) => {
       orderId: orderId || existing.orderId || null,
       receivedAt: timestamp,
       buyerName,
-      announcementName: isResolving && orderId ? `Intervenção no Pedido ${orderId} (Cancelada)` : cleanTitle,
+      announcementName: isResolving && orderId ? `Intervenção no Pedido ${orderId} (${termLabel})` : cleanTitle,
       announcementLink: cleanAnnouncementLink,
       answerLink: cleanAnswerLink,
       description: description || existing.description || '',

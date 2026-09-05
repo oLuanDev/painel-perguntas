@@ -57,46 +57,46 @@ export function detectPlatform(fromText, subjectText, bodyText = '') {
   const subject = (subjectText || '').toLowerCase();
   const body = (bodyText || '').toLowerCase();
 
-  // 1. PRIORIDADE MÁXIMA ABSOLUTA: Detecção de Cancelamento / Resolução de Mediação / Intervenção
-  // GGMAX: "Pedido de intervenção cancelado", "O problema no pedido #... foi cancelado", "solicitação de intervenção foi cancelada", etc.
-  if (from.includes('ggmax') || subject.includes('ggmax') || body.includes('ggmax')) {
-    const isGgmaxMediationCancelled =
-      ((subject.includes('intervenção') || subject.includes('intervencao') || subject.includes('mediação') || subject.includes('mediacao')) &&
-       (subject.includes('cancelad') || subject.includes('cancelou') || subject.includes('encerrad') || subject.includes('resolvid'))) ||
-      (subject.includes('problema no pedido') && subject.includes('cancelad')) ||
-      body.includes('intervenção foi cancelada') ||
-      body.includes('intervencao foi cancelada') ||
-      body.includes('solicitação de intervenção foi cancelada') ||
-      body.includes('solicitacao de intervencao foi cancelada') ||
-      body.includes('solicitaçao de intervenção foi cancelada') ||
-      body.includes('intervenção foi encerrada') ||
-      body.includes('intervencao foi encerrada') ||
-      (body.includes('problema no pedido') && body.includes('cancelado')) ||
-      body.includes('cancelou a intervenção') ||
-      body.includes('cancelou a intervencao');
+  // 1. PRIORIDADE MÁXIMA ABSOLUTA: Detecção de Cancelamento / Finalização / Resolução de Mediação / Intervenção / Intermediação
+  // GGMAX / GameMarket: "Pedido de intervenção finalizado", "Pedido de intervenção cancelado", "intermediação finalizada", etc.
+  const isResolutionTerm =
+    subject.includes('cancelad') || subject.includes('cancelou') ||
+    subject.includes('finalizad') || subject.includes('finalizou') ||
+    subject.includes('encerrad') || subject.includes('encerrou') ||
+    subject.includes('resolvid') || subject.includes('resolveu') ||
+    subject.includes('concluíd') || subject.includes('concluid') || subject.includes('concluiu') ||
+    subject.includes('fechad') || subject.includes('fechou') ||
+    body.includes('cancelad') || body.includes('cancelou') ||
+    body.includes('finalizad') || body.includes('finalizou') ||
+    body.includes('encerrad') || body.includes('encerrou') ||
+    body.includes('resolvid') || body.includes('resolveu') ||
+    body.includes('concluíd') || body.includes('concluid') || body.includes('concluiu') ||
+    body.includes('fechad') || body.includes('fechou');
 
-    if (isGgmaxMediationCancelled) {
+  if (from.includes('ggmax') || subject.includes('ggmax') || body.includes('ggmax')) {
+    const isGgmaxDisputeTerm =
+      subject.includes('intervenção') || subject.includes('intervencao') ||
+      subject.includes('intermediação') || subject.includes('intermediacao') ||
+      subject.includes('mediação') || subject.includes('mediacao') ||
+      subject.includes('problema no pedido') ||
+      body.includes('intervenção') || body.includes('intervencao') ||
+      body.includes('intermediação') || body.includes('intermediacao') ||
+      body.includes('solicitação de intervenção') || body.includes('solicitacao de intervencao') || body.includes('solicitaçao de intervenção') ||
+      body.includes('problema no pedido');
+
+    if (isResolutionTerm && isGgmaxDisputeTerm) {
       return { platform: 'ggmax', type: 'mediation_cancelled' };
     }
   }
 
-  // GameMarket: Cancelamento / Encerramento de mediação
+  // GameMarket: Cancelamento / Finalização / Encerramento de mediação
   if (from.includes('gamemarket') || subject.includes('gamemarket') || body.includes('gamemarket')) {
-    const isGmMediationCancelled =
-      ((subject.includes('mediação') || subject.includes('mediacao')) &&
-       (subject.includes('cancelad') || subject.includes('cancelou') || subject.includes('encerrad') || subject.includes('resolvid') || subject.includes('finalizad') || subject.includes('concluíd') || subject.includes('concluid'))) ||
-      body.includes('mediação foi cancelada') ||
-      body.includes('mediacao foi cancelada') ||
-      body.includes('mediação foi encerrada') ||
-      body.includes('mediacao foi encerrada') ||
-      body.includes('mediação foi finalizada') ||
-      body.includes('mediacao foi finalizada') ||
-      body.includes('mediação foi resolvida') ||
-      body.includes('mediacao foi resolvida') ||
-      body.includes('cancelou a mediação') ||
-      body.includes('cancelou a mediacao');
+    const isGmDisputeTerm =
+      subject.includes('mediação') || subject.includes('mediacao') ||
+      subject.includes('intermediação') || subject.includes('intermediacao') ||
+      body.includes('mediação') || body.includes('mediacao');
 
-    if (isGmMediationCancelled) {
+    if (isResolutionTerm && isGmDisputeTerm) {
       return { platform: 'gamemarket', type: 'mediation_cancelled' };
     }
   }
@@ -233,8 +233,12 @@ export function parseEmailContent(detection, parsedMail) {
       buyerName = buyerMatch && buyerMatch[1] ? buyerMatch[1].trim() : 'Comprador (GGMAX)';
 
       // 4. Título do Item / Mediação
-      announcementName = orderId ? `Intervenção no Pedido ${orderId} (Cancelada)` : 'Intervenção Cancelada pelo Comprador';
-      description = 'A solicitação de intervenção foi cancelada pelo comprador. O problema foi resolvido!';
+      const isFinalized = combined.toLowerCase().includes('finaliz') || subject.toLowerCase().includes('finaliz');
+      const termLabel = isFinalized ? 'Finalizada' : 'Cancelada';
+      announcementName = orderId ? `Intervenção no Pedido ${orderId} (${termLabel})` : `Intervenção ${termLabel}`;
+      description = isFinalized 
+        ? 'A intervenção/intermediação no pedido foi finalizada com sucesso.' 
+        : 'A solicitação de intervenção foi cancelada pelo comprador. O problema foi resolvido!';
 
     } else if (platform === 'gamemarket') {
       const orderMatch = text.match(/pedido:\s*#?([a-zA-Z0-9]{4,12})/i);

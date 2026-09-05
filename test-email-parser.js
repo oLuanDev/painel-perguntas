@@ -182,6 +182,29 @@ Transação: INSTAGRAM CONTAS ANTIGAS
   assert(p7.status === 'answered', 'Status do encerramento é answered');
   assert(p7.orderId === '#ZHAXGMA', 'Número do pedido GameMarket extraído (#ZHAXGMA)');
 
+  // 8. E-mail de Intervenção Finalizada GGMAX (NOVO EXEMPLO DO USUÁRIO #D8JOG67)
+  const ggmaxFinalizedEmail = {
+    from: { text: 'GGMAX <naoresponda@ggmax.com.br>' },
+    subject: 'Pedido de intervenção finalizado',
+    date: new Date(),
+    text: `
+[Pedido #D8JOG67](https://ggmax.com.br/account/orders/d8jog67)
+Olá, Hairuus50!
+    `,
+    html: `
+<a href="https://ggmax.com.br/account/orders/d8jog67">Pedido #D8JOG67</a>
+<p>Olá, Hairuus50!</p>
+    `
+  };
+
+  const d8 = detectPlatform(ggmaxFinalizedEmail.from.text, ggmaxFinalizedEmail.subject, ggmaxFinalizedEmail.text);
+  assert(d8 && d8.platform === 'ggmax' && d8.type === 'mediation_cancelled', 'Detectou intervenção finalizada GGMAX como resolvida');
+  const p8 = parseEmailContent(d8, ggmaxFinalizedEmail);
+  assert(p8.status === 'answered', 'Status da intervenção finalizada é answered (resolvida)');
+  assert(p8.orderId === '#D8JOG67', 'Número do pedido GGMAX extraído (#D8JOG67)');
+  assert(p8.announcementName.includes('Finalizada'), 'Título indica que foi finalizada');
+  assert(p8.action === 'resolve', 'Ação é resolve');
+
   console.log(`\n🎉 SUCESSO TOTAL! ${passed}/${total} asserções validadas com sucesso!`);
 }
 
