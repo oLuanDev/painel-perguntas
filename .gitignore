@@ -12,3 +12,6 @@ npm-debug.log*
 # Mac / Windows system files
 .DS_Store
 Thumbs.db
+
+# Dynamic client push subscriptions
+subscriptions.json

@@ -6,6 +6,11 @@
   <meta name="theme-color" content="#0C1220">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Atendimento">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png">
   <title>Painel de Atendimento Rápido | GGMAX & GameMarket</title>
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/logo.svg">
@@ -110,6 +115,12 @@
         <span class="w-2 h-2 rounded-full bg-rose-500 pulse-dot" id="connection-dot"></span>
         <span id="connection-text">Desconectado</span>
       </div>
+
+      <!-- Push Notifications Toggle / Guide Button -->
+      <button id="btn-push-subscribe" class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 border border-blue-500/30 text-blue-300 px-3 py-2 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all" title="Ativar notificações push no iPhone mesmo com o navegador fechado">
+        <i class="fa-solid fa-bell" id="push-icon"></i>
+        <span id="push-text">Notificações iPhone</span>
+      </button>
 
       <!-- Sound Toggle Button (Ativado por Padrão) -->
       <button id="sound-toggle" class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-950/30 hover:bg-emerald-950/50 active:scale-95 border border-emerald-500/30 px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs sm:text-sm text-emerald-400 transition-all">
@@ -307,6 +318,65 @@
       <div class="text-right">
         <button id="btn-ok-modal" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-emerald-500/20">
           Entendido, vamos manter a pontuação máxima!
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal: Guia & Ativação de Notificações no iPhone 15 Plus -->
+  <div id="iphone-push-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden transition-opacity">
+    <div class="bg-[#0f172a] border border-blue-500/30 rounded-2xl max-w-lg w-full shadow-2xl p-5 sm:p-6 relative text-slate-200">
+      
+      <!-- Close Button -->
+      <button id="btn-close-iphone-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <!-- Modal Header -->
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 flex items-center justify-center text-2xl shadow-lg shadow-blue-500/10">
+          <i class="fa-brands fa-apple"></i>
+        </div>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-white">Alertas no iPhone 15 Plus</h3>
+          <p class="text-xs text-blue-400">Notificações na Ilha Dinâmica e Tela Bloqueada sem precisar deixar o site aberto</p>
+        </div>
+      </div>
+
+      <!-- Steps Guide for iOS PWA Web Push -->
+      <div class="space-y-3 mb-5 text-xs sm:text-sm text-slate-300">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-start gap-2.5">
+          <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">1</span>
+          <div>
+            <strong class="text-white">Adicione à Tela de Início:</strong> No Safari do iPhone, toque no botão <strong>Compartilhar</strong> (ícone com quadrado e seta para cima) e selecione <strong>"Adicionar à Tela de Início"</strong>.
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-start gap-2.5">
+          <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">2</span>
+          <div>
+            <strong class="text-white">Abra pelo novo app:</strong> Feche o Safari e abra o app <strong>"Atendimento"</strong> direto pelo ícone criado na tela do seu iPhone.
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-start gap-2.5">
+          <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">3</span>
+          <div>
+            <strong class="text-white">Permitir Notificações:</strong> Toque no botão azul abaixo para ativar. Pronto! Mesmo com a tela bloqueada ou usando outros apps, seu iPhone apitará e mostrará o banner!
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row gap-2">
+        <button id="btn-request-push-perm" class="flex-1 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
+          <i class="fa-solid fa-bell"></i>
+          <span id="btn-request-push-label">Ativar Notificações no iPhone</span>
+        </button>
+        <button id="btn-test-push-notification" class="sm:flex-initial bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white font-semibold py-2.5 px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 border border-slate-700">
+          <i class="fa-solid fa-paper-plane text-xs"></i>
+          <span>Testar Alerta</span>
         </button>
       </div>
 

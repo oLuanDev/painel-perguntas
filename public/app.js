@@ -819,6 +819,144 @@ if (clearAllBtn) {
   });
 }
 
+// ==========================================
+// WEB PUSH PWA & IPHONE 15 PLUS NOTIFICATIONS
+// ==========================================
+let swRegistration = null;
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+if ('serviceWorker' in navigator && 'PushManager' in window) {
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => {
+      swRegistration = reg;
+      console.log('[PWA] Service Worker registrado com sucesso!');
+      checkPushSubscription();
+    })
+    .catch(err => {
+      console.warn('[PWA] Falha ao registrar Service Worker:', err);
+    });
+}
+
+async function checkPushSubscription() {
+  if (!swRegistration) return;
+  try {
+    const sub = await swRegistration.pushManager.getSubscription();
+    updatePushUI(!!sub);
+  } catch (e) {}
+}
+
+function updatePushUI(isSubscribed) {
+  const pushIcon = document.getElementById('push-icon');
+  const pushText = document.getElementById('push-text');
+  const btnPush = document.getElementById('btn-push-subscribe');
+  const btnRequestLabel = document.getElementById('btn-request-push-label');
+
+  if (isSubscribed) {
+    if (pushIcon) pushIcon.className = 'fa-solid fa-bell text-emerald-400';
+    if (pushText) pushText.textContent = 'Notificações Ativas';
+    if (btnPush) btnPush.className = 'flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-950/30 hover:bg-emerald-950/50 active:scale-95 border border-emerald-500/30 text-emerald-300 px-3 py-2 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all';
+    if (btnRequestLabel) btnRequestLabel.textContent = '✅ Notificações Ativadas no iPhone!';
+  } else {
+    if (pushIcon) pushIcon.className = 'fa-solid fa-bell text-blue-400';
+    if (pushText) pushText.textContent = 'Notificações iPhone';
+    if (btnPush) btnPush.className = 'flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 border border-blue-500/30 text-blue-300 px-3 py-2 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all';
+    if (btnRequestLabel) btnRequestLabel.textContent = 'Ativar Notificações no iPhone';
+  }
+}
+
+async function subscribeUserToPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert('Atenção: No iPhone, primeiro adicione o site à "Tela de Início" pelo Safari para liberar o suporte a notificações.');
+    return;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      alert('Permissão de notificação negada ou não autorizada. Verifique Ajustes > Notificações no seu iPhone.');
+      return;
+    }
+
+    if (!swRegistration) {
+      swRegistration = await navigator.serviceWorker.ready;
+    }
+
+    const resKey = await fetch('/api/push/public-key');
+    const { publicKey } = await resKey.json();
+
+    const convertedKey = urlBase64ToUint8Array(publicKey);
+
+    const subscription = await swRegistration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedKey
+    });
+
+    const resSub = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription })
+    });
+
+    if (resSub.ok) {
+      updatePushUI(true);
+      alert('🎉 Notificações Push ativadas com sucesso! Você receberá alertas na tela bloqueada e na Ilha Dinâmica mesmo com o app fechado.');
+    }
+  } catch (err) {
+    console.error('Erro ao inscrever push:', err);
+    alert('Atenção: No iPhone, você precisa abrir o app pelo ícone criado na Tela de Início para ativar as notificações.');
+  }
+}
+
+// Modal & Controles de Push do iPhone
+const iphonePushModal = document.getElementById('iphone-push-modal');
+const btnPushSubscribe = document.getElementById('btn-push-subscribe');
+const btnCloseIphoneModal = document.getElementById('btn-close-iphone-modal');
+const btnRequestPushPerm = document.getElementById('btn-request-push-perm');
+const btnTestPushNotification = document.getElementById('btn-test-push-notification');
+
+if (btnPushSubscribe) {
+  btnPushSubscribe.addEventListener('click', () => {
+    if (iphonePushModal) iphonePushModal.classList.remove('hidden');
+  });
+}
+if (btnCloseIphoneModal) {
+  btnCloseIphoneModal.addEventListener('click', () => {
+    if (iphonePushModal) iphonePushModal.classList.add('hidden');
+  });
+}
+if (btnRequestPushPerm) {
+  btnRequestPushPerm.addEventListener('click', () => {
+    subscribeUserToPush();
+  });
+}
+if (btnTestPushNotification) {
+  btnTestPushNotification.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/push/test', { method: 'POST' });
+      if (res.ok) {
+        alert('Disparo enviado! Verifique seu iPhone (Ilha Dinâmica ou Tela Bloqueada).');
+      }
+    } catch (e) {
+      alert('Erro ao testar notificação: ' + e.message);
+    }
+  });
+}
+if (iphonePushModal) {
+  iphonePushModal.addEventListener('click', (e) => {
+    if (e.target === iphonePushModal) iphonePushModal.classList.add('hidden');
+  });
+}
+
 // App Startup
 fetchQuestions();
 connectSSE();
