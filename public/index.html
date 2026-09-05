@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Atendimento Rápido | GGMAX & GameMarket</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#090D16',
+              card: '#121826',
+              border: '#1F293D',
+              emerald: '#10B981',
+              ggmax: '#F59E0B',
+              gamemarket: '#10B981'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      background-color: #090D16;
+      scrollbar-color: #1F293D #090D16;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090D16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1F293D;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2D3D5A;
+    }
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.95); }
+    }
+    .pulse-dot {
+      animation: pulse-slow 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="text-slate-200 h-full flex flex-col font-sans antialiased">
+
+  <!-- Header -->
+  <header class="border-b border-brand-border bg-[#0C1220] px-6 py-4 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
+    <div class="flex items-center gap-3">
+      <div class="bg-emerald-500/10 text-emerald-400 p-2.5 rounded-xl border border-emerald-500/20">
+        <i class="fa-solid fa-bolt-lightning text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          Painel de Atendimento Rápido
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">GGMAX & GameMarket</span>
+        </h1>
+        <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+          <i class="fa-regular fa-clock text-emerald-400"></i>
+          <span>Horário de Brasília:</span>
+          <span id="clock-brasilia" class="font-mono font-bold text-slate-200">--:--:--</span>
+          <span class="text-[10px] text-slate-500">(UTC-3)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection Status, Sound and Simulation Controls -->
+    <div class="flex items-center flex-wrap gap-3">
+      <!-- Status Badge -->
+      <div id="connection-badge" class="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-3 py-1.5 rounded-full text-xs font-semibold">
+        <span class="w-2 h-2 rounded-full bg-rose-500 pulse-dot" id="connection-dot"></span>
+        <span id="connection-text">Desconectado</span>
+      </div>
+
+      <!-- Audio Notification Toggle Button -->
+      <button id="sound-toggle" class="flex items-center gap-2 bg-brand-card hover:bg-slate-800 border border-brand-border px-3.5 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white transition-all">
+        <i class="fa-solid fa-volume-xmark" id="sound-icon"></i>
+        <span id="sound-text">Som Desativado</span>
+      </button>
+
+      <!-- Simulated question helper -->
+      <button id="sim-btn" class="flex items-center gap-2 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span>Simular Pergunta</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-6">
+    
+    <!-- Stats Cards Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Stats 1: Total Pendentes -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 flex items-center justify-between">
+        <div>
+          <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Pendentes de Resposta</span>
+          <h3 class="text-3xl font-extrabold text-white mt-1" id="stats-pending">0</h3>
+        </div>
+        <div class="bg-amber-500/10 text-amber-400 p-3 rounded-lg border border-amber-500/20">
+          <i class="fa-solid fa-hourglass-half text-xl"></i>
+        </div>
+      </div>
+
+      <!-- Stats 2: Perguntas Críticas (< 15 min ou Expiradas) -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 flex items-center justify-between">
+        <div>
+          <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Atenção / Urgentes</span>
+          <h3 class="text-3xl font-extrabold text-rose-400 mt-1" id="stats-urgent">0</h3>
+        </div>
+        <div class="bg-rose-500/10 text-rose-400 p-3 rounded-lg border border-rose-500/20">
+          <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+        </div>
+      </div>
+
+      <!-- Stats 3: Total Respondidas -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 flex items-center justify-between">
+        <div>
+          <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Respondidas hoje</span>
+          <h3 class="text-3xl font-extrabold text-white mt-1" id="stats-answered">0</h3>
+        </div>
+        <div class="bg-emerald-500/10 text-emerald-400 p-3 rounded-lg border border-emerald-500/20">
+          <i class="fa-solid fa-check-double text-xl"></i>
+        </div>
+      </div>
+
+      <!-- Stats 4: SLA / Tempo Ativo -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 flex items-center justify-between">
+        <div>
+          <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Meta de Resposta</span>
+          <h3 class="text-lg font-bold text-emerald-400 mt-1">Até 1 Hora</h3>
+          <span class="text-[11px] text-slate-400">Ativo há: <span id="dashboard-runtime" class="font-mono text-slate-300">00:00:00</span></span>
+        </div>
+        <div class="bg-blue-500/10 text-blue-400 p-3 rounded-lg border border-blue-500/20">
+          <i class="fa-solid fa-shield-halved text-xl"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex border-b border-brand-border">
+      <button id="tab-pending" class="px-5 py-3 border-b-2 border-emerald-500 text-emerald-400 font-semibold text-sm transition-all flex items-center gap-2">
+        <i class="fa-solid fa-hourglass-half"></i>
+        <span>Pendentes de Resposta</span>
+        <span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full text-xs" id="badge-pending-count">0</span>
+      </button>
+      <button id="tab-answered" class="px-5 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-semibold text-sm transition-all flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span>Respondidas / Arquivadas</span>
+        <span class="bg-zinc-800 text-slate-400 px-2 py-0.5 rounded-full text-xs" id="badge-answered-count">0</span>
+      </button>
+    </div>
+
+    <!-- Questions Grid / List -->
+    <div class="flex-1 flex flex-col">
+      <!-- Empty state -->
+      <div id="empty-state" class="flex-1 flex flex-col items-center justify-center py-16 px-4 bg-brand-card/40 border border-brand-border border-dashed rounded-2xl text-center">
+        <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-4 text-2xl">
+          <i class="fa-regular fa-folder-open"></i>
+        </div>
+        <h4 class="text-base font-bold text-white">Nenhuma pergunta encontrada</h4>
+        <p class="text-sm text-slate-400 mt-1 max-w-sm">Perguntas da GGMAX ou GameMarket aparecerão aqui automaticamente em tempo real.</p>
+      </div>
+
+      <!-- Question List Container -->
+      <div id="questions-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+        <!-- Rendered dynamically in app.js -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-brand-border bg-[#060911] px-6 py-4 text-center text-xs text-slate-500">
+    <p>Fast Dashboard &copy; 2026 - Painel de Atendimento Rápido (GGMAX & GameMarket) | SLA 1h</p>
+  </footer>
+
+  <!-- Script logic -->
+  <script src="/app.js"></script>
+</body>
+</html>

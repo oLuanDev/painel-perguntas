@@ -1,0 +1,21 @@
+{
+  "name": "fast-questions-dashboard",
+  "version": "1.0.0",
+  "description": "Painel de atendimento rápido e em tempo real para monitoramento de perguntas de clientes.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "bot": "node email-bot.js",
+    "test:email": "node test-email-parser.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "imapflow": "^1.7.8",
+    "mailparser": "^3.9.20"
+  }
+}

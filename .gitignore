@@ -1,0 +1,14 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente com senhas pessoais
+.env
+.env.local
+
+# Logs e arquivos temporários
+*.log
+npm-debug.log*
+
+# Mac / Windows system files
+.DS_Store
+Thumbs.db
