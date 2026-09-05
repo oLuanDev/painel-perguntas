@@ -133,6 +133,55 @@ Mantenha-se disponível para fornecer informações adicionais
   assert(p5.announcementName === 'INSTAGRAM CONTAS ANTIGAS COM SEGUIDORES 2009 - 2020', 'Produto em mediação GameMarket extraído');
   assert(p5.answerLink.includes('awstrack.me') || p5.answerLink.includes('gamemarket.com.br/compras'), 'Link de mediação GameMarket extraído');
 
+  // 6. E-mail de Cancelamento de Intervenção GGMAX (EXEMPLO REAL DO USUÁRIO)
+  const ggmaxCancelledEmail = {
+    from: { text: 'GGMAX <naoresponda@ggmax.com.br>' },
+    subject: 'Pedido de intervenção cancelado',
+    date: new Date(),
+    text: `
+[Pedido #WB83QKM](https://ggmax.com.br/account/orders/wb83qkm)
+Olá, Hairuus50!
+O problema no pedido #WB83QKM foi cancelado
+A solicitação de intervenção foi cancelada pelo comprador.
+[Ver pedido #WB83QKM](https://ggmax.com.br/account/orders/wb83qkm)
+    `,
+    html: `
+<a href="https://ggmax.com.br/account/orders/wb83qkm">Pedido #WB83QKM</a>
+<p>Olá, Hairuus50!</p>
+<p>O problema no pedido #WB83QKM foi cancelado</p>
+<p>A solicitação de intervenção foi cancelada pelo comprador.</p>
+<a href="https://ggmax.com.br/account/orders/wb83qkm">Ver pedido #WB83QKM</a>
+    `
+  };
+
+  const d6 = detectPlatform(ggmaxCancelledEmail.from.text, ggmaxCancelledEmail.subject, ggmaxCancelledEmail.text);
+  assert(d6 && d6.platform === 'ggmax' && d6.type === 'mediation_cancelled', 'Detectou cancelamento de intervenção GGMAX');
+  const p6 = parseEmailContent(d6, ggmaxCancelledEmail);
+  assert(p6.status === 'answered', 'Status do cancelamento é answered (resolvida)');
+  assert(p6.orderId === '#WB83QKM', 'Número do pedido GGMAX extraído (#WB83QKM)');
+  assert(p6.answerLink.includes('/account/orders/wb83qkm'), 'Link do pedido GGMAX extraído');
+  assert(p6.action === 'resolve', 'Ação é resolve');
+
+  // 7. E-mail de Encerramento de Mediação GameMarket
+  const gmCancelledEmail = {
+    from: { text: 'GameMarket <noreply@gamemarket.com.br>' },
+    subject: 'Mediação Encerrada - GameMarket',
+    date: new Date(),
+    text: `
+Mediação Encerrada
+A mediação para o pedido #ZHAXGMA foi encerrada com sucesso.
+Pedido: #ZHAXGMA
+Transação: INSTAGRAM CONTAS ANTIGAS
+    `,
+    html: `<p>A mediação foi encerrada com sucesso.</p>`
+  };
+
+  const d7 = detectPlatform(gmCancelledEmail.from.text, gmCancelledEmail.subject, gmCancelledEmail.text);
+  assert(d7 && d7.platform === 'gamemarket' && d7.type === 'mediation_cancelled', 'Detectou encerramento de mediação GameMarket');
+  const p7 = parseEmailContent(d7, gmCancelledEmail);
+  assert(p7.status === 'answered', 'Status do encerramento é answered');
+  assert(p7.orderId === '#ZHAXGMA', 'Número do pedido GameMarket extraído (#ZHAXGMA)');
+
   console.log(`\n🎉 SUCESSO TOTAL! ${passed}/${total} asserções validadas com sucesso!`);
 }
 

@@ -57,7 +57,51 @@ export function detectPlatform(fromText, subjectText, bodyText = '') {
   const subject = (subjectText || '').toLowerCase();
   const body = (bodyText || '').toLowerCase();
 
-  // 1. PRIORIDADE MÁXIMA: Detecção de Mediações / Intervenções
+  // 1. PRIORIDADE MÁXIMA ABSOLUTA: Detecção de Cancelamento / Resolução de Mediação / Intervenção
+  // GGMAX: "Pedido de intervenção cancelado", "O problema no pedido #... foi cancelado", "solicitação de intervenção foi cancelada", etc.
+  if (from.includes('ggmax') || subject.includes('ggmax') || body.includes('ggmax')) {
+    const isGgmaxMediationCancelled =
+      ((subject.includes('intervenção') || subject.includes('intervencao') || subject.includes('mediação') || subject.includes('mediacao')) &&
+       (subject.includes('cancelad') || subject.includes('cancelou') || subject.includes('encerrad') || subject.includes('resolvid'))) ||
+      (subject.includes('problema no pedido') && subject.includes('cancelad')) ||
+      body.includes('intervenção foi cancelada') ||
+      body.includes('intervencao foi cancelada') ||
+      body.includes('solicitação de intervenção foi cancelada') ||
+      body.includes('solicitacao de intervencao foi cancelada') ||
+      body.includes('solicitaçao de intervenção foi cancelada') ||
+      body.includes('intervenção foi encerrada') ||
+      body.includes('intervencao foi encerrada') ||
+      (body.includes('problema no pedido') && body.includes('cancelado')) ||
+      body.includes('cancelou a intervenção') ||
+      body.includes('cancelou a intervencao');
+
+    if (isGgmaxMediationCancelled) {
+      return { platform: 'ggmax', type: 'mediation_cancelled' };
+    }
+  }
+
+  // GameMarket: Cancelamento / Encerramento de mediação
+  if (from.includes('gamemarket') || subject.includes('gamemarket') || body.includes('gamemarket')) {
+    const isGmMediationCancelled =
+      ((subject.includes('mediação') || subject.includes('mediacao')) &&
+       (subject.includes('cancelad') || subject.includes('cancelou') || subject.includes('encerrad') || subject.includes('resolvid') || subject.includes('finalizad') || subject.includes('concluíd') || subject.includes('concluid'))) ||
+      body.includes('mediação foi cancelada') ||
+      body.includes('mediacao foi cancelada') ||
+      body.includes('mediação foi encerrada') ||
+      body.includes('mediacao foi encerrada') ||
+      body.includes('mediação foi finalizada') ||
+      body.includes('mediacao foi finalizada') ||
+      body.includes('mediação foi resolvida') ||
+      body.includes('mediacao foi resolvida') ||
+      body.includes('cancelou a mediação') ||
+      body.includes('cancelou a mediacao');
+
+    if (isGmMediationCancelled) {
+      return { platform: 'gamemarket', type: 'mediation_cancelled' };
+    }
+  }
+
+  // 2. PRIORIDADE: Detecção de Mediações / Intervenções ABERTAS
   // GGMAX: "O comprador reportou um problema", "intervenção foi solicitada", etc.
   if (from.includes('ggmax') || subject.includes('ggmax') || body.includes('ggmax')) {
     const isGgmaxMediation =
@@ -165,7 +209,71 @@ export function parseEmailContent(detection, parsedMail) {
   const dateObj = parsedMail.date ? new Date(parsedMail.date) : new Date();
 
   // ==========================================
-  // CENÁRIO A: MEDIAÇÕES / INTERVENÇÕES
+  // CENÁRIO A: MEDIAÇÕES CANCELADAS / RESOLVIDAS
+  // ==========================================
+  if (itemType === 'mediation_cancelled') {
+    if (platform === 'ggmax') {
+      // 1. Extração do Pedido (Ex: #WB83QKM ou Pedido #WB83QKM)
+      const orderMatch = combined.match(/(?:pedido|intervenção para o pedido|problema no pedido)\s*#?([a-zA-Z0-9]{5,12})/i);
+      orderId = orderMatch && orderMatch[1] ? `#${orderMatch[1].toUpperCase()}` : '';
+
+      // 2. Extração do Link do Pedido
+      const orderLinkMatch = combined.match(/https?:\/\/(?:www\.)?ggmax\.com\.br\/account\/orders\/[a-zA-Z0-9\-_]+/i);
+      if (orderLinkMatch) {
+        announcementLink = orderLinkMatch[0];
+      } else if (orderId) {
+        announcementLink = `https://ggmax.com.br/account/orders/${orderId.replace('#', '').toLowerCase()}`;
+      } else {
+        announcementLink = 'https://ggmax.com.br/account/orders';
+      }
+      answerLink = announcementLink;
+
+      // 3. Nome do Comprador
+      const buyerMatch = text.match(/Olá,\s*([^\n!,\r]+)/i);
+      buyerName = buyerMatch && buyerMatch[1] ? buyerMatch[1].trim() : 'Comprador (GGMAX)';
+
+      // 4. Título do Item / Mediação
+      announcementName = orderId ? `Intervenção no Pedido ${orderId} (Cancelada)` : 'Intervenção Cancelada pelo Comprador';
+      description = 'A solicitação de intervenção foi cancelada pelo comprador. O problema foi resolvido!';
+
+    } else if (platform === 'gamemarket') {
+      const orderMatch = text.match(/pedido:\s*#?([a-zA-Z0-9]{4,12})/i);
+      orderId = orderMatch && orderMatch[1] ? `#${orderMatch[1].toUpperCase()}` : '';
+
+      const prodMatch = text.match(/transação:\s*\n+([^\n\r]+)/i);
+      if (prodMatch && prodMatch[1] && !prodMatch[1].toLowerCase().includes('pedido')) {
+        announcementName = `${prodMatch[1].trim()} (Mediação Cancelada)`;
+      } else {
+        announcementName = orderId ? `Transação Pedido ${orderId} (Mediação Cancelada)` : 'Mediação GameMarket (Cancelada)';
+      }
+
+      const gmLinkMatch = combined.match(/https?:\/\/(?:www\.)?gamemarket\.com\.br\/[a-zA-Z0-9\-_/]+/i);
+      answerLink = gmLinkMatch ? gmLinkMatch[0].replace(/[\]\)\>\s]+$/, '') : 'https://gamemarket.com.br/compras';
+      announcementLink = answerLink;
+      buyerName = 'Comprador (GameMarket)';
+      description = 'Mediação cancelada/encerrada com sucesso na GameMarket.';
+    }
+
+    const uniqueId = `${platform}-mediation-${orderId ? orderId.replace('#', '').toLowerCase() : Date.now()}`;
+
+    return {
+      id: uniqueId,
+      platform,
+      type: 'mediation',
+      orderId,
+      receivedAt: dateObj.toISOString(),
+      buyerName,
+      announcementName: announcementName.replace(/[\[\]\\]/g, '').trim(),
+      announcementLink,
+      answerLink,
+      description,
+      status: 'answered',
+      action: 'resolve'
+    };
+  }
+
+  // ==========================================
+  // CENÁRIO B: MEDIAÇÕES / INTERVENÇÕES ABERTAS
   // ==========================================
   if (itemType === 'mediation') {
     if (platform === 'ggmax') {
@@ -440,7 +548,9 @@ export async function startBot() {
           if (detected) {
             const platform = typeof detected === 'object' ? detected.platform : detected;
             const itemType = typeof detected === 'object' ? detected.type : 'question';
-            const labelType = itemType === 'mediation' ? '⚖️ MEDIAÇÃO / INTERVENÇÃO' : '❓ PERGUNTA';
+            const labelType = itemType === 'mediation' 
+              ? '⚖️ MEDIAÇÃO / INTERVENÇÃO' 
+              : (itemType === 'mediation_cancelled' ? '✅ MEDIAÇÃO CANCELADA / RESOLVIDA' : '❓ PERGUNTA');
 
             console.log(`[BOT] 🎯 ${labelType} detectada! Plataforma: [${platform.toUpperCase()}]`);
 
@@ -450,7 +560,7 @@ export async function startBot() {
             if (ok) {
               activeProcessedIds.add(msgId);
               await saveProcessedIds(activeProcessedIds);
-              console.log(`[BOT] 🎉 ${labelType} "${payload.announcementName}" adicionada com sucesso ao painel!`);
+              console.log(`[BOT] 🎉 ${labelType} "${payload.announcementName}" processada com sucesso no painel!`);
             }
           }
         }

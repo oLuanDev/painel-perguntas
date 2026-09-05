@@ -75,7 +75,24 @@ let sseClients = [];
 async function readQuestions() {
   try {
     const data = await fs.readFile(DB_FILE, 'utf-8');
-    return JSON.parse(data || '[]');
+    const questions = JSON.parse(data);
+    let changed = false;
+    // Auto-correção: se algum item foi salvo com intervenção cancelada mas ficou pendente, corrige para 'answered'
+    questions.forEach(q => {
+      if (q.status === 'pending') {
+        const titleLower = (q.announcementName || '').toLowerCase();
+        const descLower = (q.description || '').toLowerCase();
+        if (titleLower.includes('cancelad') || titleLower.includes('cancelou') || descLower.includes('cancelad') || descLower.includes('cancelou')) {
+          q.status = 'answered';
+          changed = true;
+          console.log(`[AUTO-FIX] Pedido ${q.orderId || q.id} corrigido de 'pending' para 'answered' (intervenção cancelada).`);
+        }
+      }
+    });
+    if (changed) {
+      await fs.writeFile(DB_FILE, JSON.stringify(questions, null, 2), 'utf-8');
+    }
+    return questions;
   } catch (error) {
     // If the file doesn't exist or is invalid, return empty array
     return [];
@@ -139,9 +156,9 @@ app.post('/api/questions', async (req, res) => {
   // Se for pergunta: deduplica por id OU por anúncio pendente
   const existingIndex = questions.findIndex(q => {
     if (q.id === id) return true;
-    if (itemType === 'mediation' && q.type === 'mediation' && q.status === 'pending') {
-      return (orderId && q.orderId && q.orderId.toUpperCase() === orderId.toUpperCase()) ||
-             (normalizeLink(q.announcementLink) === normalizeLink(cleanAnnouncementLink));
+    if (itemType === 'mediation' && q.type === 'mediation') {
+      if (orderId && q.orderId && q.orderId.toUpperCase() === orderId.toUpperCase()) return true;
+      if (cleanAnnouncementLink && q.announcementLink && normalizeLink(q.announcementLink) === normalizeLink(cleanAnnouncementLink)) return true;
     }
     if (itemType === 'question' && q.type !== 'mediation' && q.status === 'pending') {
       return normalizeLink(q.announcementLink) === normalizeLink(cleanAnnouncementLink);
@@ -150,6 +167,8 @@ app.post('/api/questions', async (req, res) => {
   });
 
   const timestamp = receivedAt || new Date().toISOString();
+  const isResolving = req.body.action === 'resolve' || req.body.status === 'answered' || cleanTitle.toLowerCase().includes('cancelad');
+  const targetStatus = isResolving ? 'answered' : (req.body.status || 'pending');
 
   let questionObj;
 
@@ -163,11 +182,11 @@ app.post('/api/questions', async (req, res) => {
       orderId: orderId || existing.orderId || null,
       receivedAt: timestamp,
       buyerName,
-      announcementName: cleanTitle,
+      announcementName: isResolving && orderId ? `Intervenção no Pedido ${orderId} (Cancelada)` : cleanTitle,
       announcementLink: cleanAnnouncementLink,
       answerLink: cleanAnswerLink,
       description: description || existing.description || '',
-      status: req.body.status || existing.status || 'pending'
+      status: targetStatus
     };
     questions[existingIndex] = questionObj;
   } else {
@@ -183,7 +202,7 @@ app.post('/api/questions', async (req, res) => {
       announcementLink: cleanAnnouncementLink,
       answerLink: cleanAnswerLink,
       description: description || '',
-      status: req.body.status || 'pending'
+      status: targetStatus
     };
     questions.push(questionObj);
   }
@@ -195,8 +214,8 @@ app.post('/api/questions', async (req, res) => {
     question: questionObj
   });
 
-  // Dispara notificação push para o iPhone / todos os dispositivos inscritos
-  if (existingIndex === -1) {
+  // Dispara notificação push para o iPhone apenas se o item for PENDENTE
+  if (existingIndex === -1 && questionObj.status === 'pending') {
     if (itemType === 'mediation') {
       sendPushToAll({
         title: `🚨 MEDIAÇÃO: ${platform.toUpperCase()} (${orderId || 'Disputa'})`,

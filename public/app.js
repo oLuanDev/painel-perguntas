@@ -458,27 +458,36 @@ function renderUI() {
       const orderIdDisplay = q.orderId || 'S/N';
       const isNightReceived = isBrasiliaNightWindow(q.receivedAt);
 
-      card.className = 'bg-brand-card/95 border-2 border-rose-500/40 hover:border-rose-500 rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group overflow-hidden shadow-xl shadow-rose-950/20';
+      card.className = isChecked
+        ? 'bg-brand-card/90 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group overflow-hidden shadow-lg'
+        : 'bg-brand-card/95 border-2 border-rose-500/40 hover:border-rose-500 rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group overflow-hidden shadow-xl shadow-rose-950/20';
 
       card.innerHTML = `
-        <div class="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-rose-500 via-amber-500 to-rose-600"></div>
+        <div class="absolute top-0 left-0 w-full h-[4px] ${isChecked ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600' : 'bg-gradient-to-r from-rose-500 via-amber-500 to-rose-600'}"></div>
 
         <div>
-          <!-- Top header with Urgent Mediation Badge -->
+          <!-- Top header with Mediation Status Badge -->
           <div class="flex items-start justify-between gap-2 mb-3">
             <div class="flex flex-wrap items-center gap-1.5">
+              ${isChecked ? `
+              <span class="text-[11px] px-2.5 py-0.5 rounded-full border font-bold bg-emerald-500/20 text-emerald-300 border-emerald-500/40 flex items-center gap-1">
+                <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                MEDIAÇÃO RESOLVIDA / CANCELADA
+              </span>
+              ` : `
               <span class="text-[11px] px-2.5 py-0.5 rounded-full border font-extrabold bg-rose-500/20 text-rose-300 border-rose-500/40 flex items-center gap-1 animate-pulse">
                 <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
                 MEDIAÇÃO ABERTA
               </span>
+              `}
               <span class="text-[11px] px-2 py-0.5 rounded-md border font-bold ${platformBadge}">
                 ${platformLabel}
               </span>
             </div>
             <div class="text-right">
               <div class="text-xs font-bold text-slate-200 flex items-center justify-end gap-1.5">
-                <i class="fa-regular fa-clock text-rose-400"></i>
-                Aberta às ${formatBrasiliaMadeTime(q.receivedAt)}
+                <i class="fa-regular fa-clock ${isChecked ? 'text-emerald-400' : 'text-rose-400'}"></i>
+                ${isChecked ? 'Registrada às' : 'Aberta às'} ${formatBrasiliaMadeTime(q.receivedAt)}
               </div>
               <div class="text-[10px] text-slate-400 mt-0.5" data-time="${q.receivedAt}">
                 (${getRelativeTime(q.receivedAt)})
@@ -487,9 +496,9 @@ function renderUI() {
           </div>
 
           <!-- Pedido / Order ID Banner with Fast Copy -->
-          <div class="mb-3 bg-rose-950/40 border border-rose-500/30 rounded-xl p-2.5 sm:p-3 flex items-center justify-between gap-2">
+          <div class="mb-3 ${isChecked ? 'bg-slate-950/40 border border-brand-border' : 'bg-rose-950/40 border border-rose-500/30'} rounded-xl p-2.5 sm:p-3 flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-              <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center font-bold text-xs sm:text-sm">
+              <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg ${isChecked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'} flex items-center justify-center font-bold text-xs sm:text-sm">
                 <i class="fa-solid fa-receipt"></i>
               </div>
               <div>
@@ -524,10 +533,17 @@ function renderUI() {
               ${q.buyerName}
             </div>
 
+            ${isChecked ? `
+            <div class="text-[11px] text-emerald-300 bg-emerald-950/30 border border-emerald-500/30 rounded-lg p-2.5 flex items-start gap-2">
+              <i class="fa-solid fa-circle-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Intervenção Cancelada / Resolvida:</strong> ${q.description || 'A solicitação de intervenção foi cancelada pelo comprador. Pedido normalizado!'}</span>
+            </div>
+            ` : `
             <div class="text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 flex items-start gap-2">
               <i class="fa-solid fa-shield-cat text-amber-400 mt-0.5"></i>
               <span><strong>Meta Prestige GM:</strong> Mediações perdidas devem ficar abaixo de 3% para garantir o desconto de 10% nas taxas!</span>
             </div>
+            `}
           </div>
         </div>
 
@@ -535,7 +551,7 @@ function renderUI() {
         <div class="pt-3 border-t border-brand-border/60 flex flex-col gap-2.5">
           <div class="flex items-center justify-between gap-2">
             <label class="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-400 hover:text-slate-200">
-              <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 rounded border-brand-border text-rose-600 focus:ring-rose-500 bg-slate-900 border" onclick="event.preventDefault(); window.handleCheckClick('${q.id}', '${q.status}')">
+              <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 rounded border-brand-border ${isChecked ? 'text-emerald-600 focus:ring-emerald-500' : 'text-rose-600 focus:ring-rose-500'} bg-slate-900 border" onclick="event.preventDefault(); window.handleCheckClick('${q.id}', '${q.status}')">
               <span>${isChecked ? 'Reabrir Mediação' : 'Marcar como Resolvida'}</span>
             </label>
             <button onclick="window.handleDeleteClick('${q.id}')" class="text-xs text-rose-400/60 hover:text-rose-400 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-rose-500/10" title="Excluir mediação">
@@ -545,10 +561,17 @@ function renderUI() {
           </div>
 
           <!-- Big CTA Button for Mediation -->
+          ${isChecked ? `
+          <a href="${q.answerLink}" target="_blank" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 active:scale-98 text-slate-300 hover:text-white font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm transition-all select-none">
+            <i class="fa-solid fa-up-right-from-square"></i>
+            VER DETALHES DO PEDIDO
+          </a>
+          ` : `
           <a href="${q.answerLink}" target="_blank" class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 active:scale-98 text-white font-extrabold py-3 px-4 rounded-xl shadow-lg shadow-rose-900/40 text-xs sm:text-sm transition-all tracking-wider uppercase select-none">
             <i class="fa-solid fa-scale-balanced"></i>
             RESOLVER MEDIAÇÃO NO PEDIDO
           </a>
+          `}
         </div>
       `;
 
@@ -774,10 +797,12 @@ function connectSSE() {
         questions.unshift(data.question);
         renderUI();
 
-        if (data.question.type === 'mediation') {
-          playAlertSound('Atenção: Nova mediação iniciada!');
-        } else {
-          playAlertSound('Pergunta realizada!');
+        if (data.question.status === 'pending') {
+          if (data.question.type === 'mediation') {
+            playAlertSound('Atenção: Nova mediação iniciada!');
+          } else {
+            playAlertSound('Pergunta realizada!');
+          }
         }
       } else if (data.type === 'question_updated') {
         const index = questions.findIndex(q => q.id === data.question.id);
