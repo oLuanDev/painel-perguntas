@@ -351,7 +351,7 @@ function renderUI() {
   filtered.forEach(q => {
     const card = document.createElement('div');
     card.setAttribute('data-question-id', q.id);
-    card.className = 'bg-brand-card/90 border border-brand-border hover:border-slate-700/80 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 relative group overflow-hidden shadow-lg';
+    card.className = 'bg-brand-card/90 border border-brand-border hover:border-slate-700/80 rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group overflow-hidden shadow-lg';
     
     // Platform styles
     const isGGMax = q.platform.toLowerCase() === 'ggmax';
@@ -439,7 +439,7 @@ function renderUI() {
         </div>
 
         <!-- Big CTA Button -->
-        <a href="${q.answerLink}" target="_blank" class="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg hover:shadow-emerald-500/10 text-xs transition-all tracking-wider uppercase">
+        <a href="${q.answerLink}" target="_blank" class="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-bold py-3 sm:py-2.5 px-4 rounded-xl shadow-lg hover:shadow-emerald-500/10 text-xs sm:text-sm transition-all tracking-wider uppercase select-none">
           <i class="fa-solid fa-reply"></i>
           RESPONDER PERGUNTA
         </a>
