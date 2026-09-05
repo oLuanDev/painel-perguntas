@@ -49,14 +49,53 @@ async function saveProcessedIds(set) {
 }
 
 /**
- * Detecta se o e-mail é EXCLUSIVAMENTE uma pergunta (ignora vendas, pedidos e pagamentos)
+ * Detecta se o e-mail é uma Mediação/Intervenção ou uma Pergunta
+ * Ignora e-mails comuns de vendas/pedidos sem mediação
  */
 export function detectPlatform(fromText, subjectText, bodyText = '') {
   const from = (fromText || '').toLowerCase();
   const subject = (subjectText || '').toLowerCase();
   const body = (bodyText || '').toLowerCase();
 
-  // 1. BLOQUEIO TOTAL: E-mails de Vendas, Pedidos, Pagamentos ou Entregas
+  // 1. PRIORIDADE MÁXIMA: Detecção de Mediações / Intervenções
+  // GGMAX: "O comprador reportou um problema", "intervenção foi solicitada", etc.
+  if (from.includes('ggmax') || subject.includes('ggmax') || body.includes('ggmax')) {
+    const isGgmaxMediation =
+      subject.includes('reportou um problema') ||
+      subject.includes('intervenção') ||
+      subject.includes('intervencao') ||
+      subject.includes('mediação') ||
+      subject.includes('mediacao') ||
+      body.includes('reportou um problema') ||
+      body.includes('intervenção foi solicitada') ||
+      body.includes('intervencao foi solicitada') ||
+      body.includes('solicitaçao de intervenção') ||
+      body.includes('solicitação de intervenção') ||
+      body.includes('moderadores intervir');
+
+    if (isGgmaxMediation) {
+      return { platform: 'ggmax', type: 'mediation' };
+    }
+  }
+
+  // GameMarket: "Nova Mediação Iniciada", "Mediação Iniciada", etc.
+  if (from.includes('gamemarket') || subject.includes('gamemarket') || body.includes('gamemarket')) {
+    const isGmMediation =
+      subject.includes('mediação') ||
+      subject.includes('mediacao') ||
+      body.includes('mediação foi aberta') ||
+      body.includes('mediacao foi aberta') ||
+      body.includes('mediação foi iniciada') ||
+      body.includes('mediacao foi iniciada') ||
+      body.includes('acompanhar mediação') ||
+      body.includes('acompanhar mediacao');
+
+    if (isGmMediation) {
+      return { platform: 'gamemarket', type: 'mediation' };
+    }
+  }
+
+  // 2. BLOQUEIO DE VENDAS E PEDIDOS NORMAIS (Se não for mediação)
   const isSaleOrOrder =
     subject.includes('venda') ||
     subject.includes('vendeu') ||
@@ -73,11 +112,11 @@ export function detectPlatform(fromText, subjectText, bodyText = '') {
     body.includes('orders/');
 
   if (isSaleOrOrder) {
-    // É uma notificação de venda/pedido -> NÃO É PERGUNTA!
+    // Venda comum sem mediação -> Descartar
     return null;
   }
 
-  // 2. GGMAX - Somente se for especificamente NOTIFICAÇÃO DE PERGUNTA
+  // 3. GGMAX - Notificação de Pergunta
   if (from.includes('ggmax') || subject.includes('ggmax')) {
     const isGgmaxQuestion =
       subject.includes('pergunta') ||
@@ -85,18 +124,18 @@ export function detectPlatform(fromText, subjectText, bodyText = '') {
       body.includes('received-questions');
 
     if (isGgmaxQuestion) {
-      return 'ggmax';
+      return { platform: 'ggmax', type: 'question' };
     }
   }
 
-  // 3. GameMarket - Somente se for especificamente NOTIFICAÇÃO DE PERGUNTA
+  // 4. GameMarket - Notificação de Pergunta
   if (from.includes('gamemarket') || subject.includes('gamemarket')) {
     const isGmQuestion =
       subject.includes('pergunta') ||
       body.includes('nova pergunta');
 
     if (isGmQuestion) {
-      return 'gamemarket';
+      return { platform: 'gamemarket', type: 'question' };
     }
   }
 
@@ -104,9 +143,13 @@ export function detectPlatform(fromText, subjectText, bodyText = '') {
 }
 
 /**
- * Parser inteligente de conteúdo de e-mail para GGMAX e GameMarket
+ * Parser inteligente de conteúdo de e-mail para Perguntas e Mediações
  */
-export function parseEmailContent(platform, parsedMail) {
+export function parseEmailContent(detection, parsedMail) {
+  // detection pode ser objeto { platform, type } ou string legada 'ggmax' | 'gamemarket'
+  const platform = typeof detection === 'object' && detection !== null ? detection.platform : detection;
+  const itemType = typeof detection === 'object' && detection !== null ? detection.type : 'question';
+
   const text = parsedMail.text || '';
   const html = parsedMail.html || '';
   const combined = `${text}\n${html}`;
@@ -116,7 +159,86 @@ export function parseEmailContent(platform, parsedMail) {
   let announcementLink = '';
   let answerLink = '';
   let buyerName = '';
+  let orderId = '';
+  let description = '';
 
+  const dateObj = parsedMail.date ? new Date(parsedMail.date) : new Date();
+
+  // ==========================================
+  // CENÁRIO A: MEDIAÇÕES / INTERVENÇÕES
+  // ==========================================
+  if (itemType === 'mediation') {
+    if (platform === 'ggmax') {
+      // 1. Extração do Pedido (Ex: #WB83QKM ou Pedido #WB83QKM)
+      const orderMatch = combined.match(/(?:pedido|intervenção para o pedido)\s*#?([a-zA-Z0-9]{5,12})/i);
+      orderId = orderMatch && orderMatch[1] ? `#${orderMatch[1].toUpperCase()}` : '';
+
+      // 2. Extração do Link do Pedido
+      const orderLinkMatch = combined.match(/https?:\/\/(?:www\.)?ggmax\.com\.br\/account\/orders\/[a-zA-Z0-9\-_]+/i);
+      if (orderLinkMatch) {
+        announcementLink = orderLinkMatch[0];
+      } else if (orderId) {
+        announcementLink = `https://ggmax.com.br/account/orders/${orderId.replace('#', '').toLowerCase()}`;
+      } else {
+        announcementLink = 'https://ggmax.com.br/account/orders';
+      }
+      answerLink = announcementLink;
+
+      // 3. Nome do Comprador
+      const buyerMatch = text.match(/Olá,\s*([^\n!,\r]+)/i);
+      buyerName = buyerMatch && buyerMatch[1] ? buyerMatch[1].trim() : 'Comprador (GGMAX)';
+
+      // 4. Título do Item / Mediação
+      announcementName = orderId ? `Intervenção no Pedido ${orderId}` : 'Intervenção Solicitada pelo Comprador';
+      description = 'O comprador solicitou intervenção da moderação. Tente resolver o problema diretamente com ele o mais rápido possível!';
+
+    } else if (platform === 'gamemarket') {
+      // 1. Extração do Pedido GameMarket (Ex: Pedido: #ZHAXGMA)
+      const orderMatch = text.match(/pedido:\s*#?([a-zA-Z0-9]{4,12})/i);
+      orderId = orderMatch && orderMatch[1] ? `#${orderMatch[1].toUpperCase()}` : '';
+
+      // 2. Extração do Produto anunciado
+      const prodMatch = text.match(/transação:\s*\n+([^\n\r]+)/i);
+      if (prodMatch && prodMatch[1] && !prodMatch[1].toLowerCase().includes('pedido')) {
+        announcementName = prodMatch[1].trim();
+      } else {
+        announcementName = orderId ? `Transação Pedido ${orderId}` : 'Mediação GameMarket';
+      }
+
+      // 3. Extração do Link de Acompanhar Mediação
+      const trackLinkMatch = combined.match(/https?:\/\/[^\s\)\>\]]+awstrack\.me[^\s\)\>\]]+/i);
+      if (trackLinkMatch) {
+        answerLink = trackLinkMatch[0].replace(/[\]\)\>\s]+$/, '');
+        announcementLink = answerLink;
+      } else {
+        const gmLinkMatch = combined.match(/https?:\/\/(?:www\.)?gamemarket\.com\.br\/[a-zA-Z0-9\-_/]+/i);
+        answerLink = gmLinkMatch ? gmLinkMatch[0].replace(/[\]\)\>\s]+$/, '') : 'https://gamemarket.com.br/compras';
+        announcementLink = answerLink;
+      }
+
+      buyerName = 'Comprador (GameMarket)';
+      description = 'Mediação aberta. A equipe GameMarket analisará o caso em até 2 dias úteis. Responda imediatamente para proteger seu Selo Prestige GM!';
+    }
+
+    const uniqueId = `${platform}-mediation-${orderId ? orderId.replace('#', '').toLowerCase() : Date.now()}`;
+
+    return {
+      id: uniqueId,
+      platform,
+      type: 'mediation',
+      orderId,
+      receivedAt: dateObj.toISOString(),
+      buyerName,
+      announcementName: announcementName.replace(/[\[\]\\]/g, '').trim(),
+      announcementLink,
+      answerLink,
+      description
+    };
+  }
+
+  // ==========================================
+  // CENÁRIO B: PERGUNTAS COMUNS
+  // ==========================================
   if (platform === 'ggmax') {
     // 1. Extração limpa do link do anúncio GGMAX (sem capturar ] ou pontuação)
     const linkMatch = combined.match(/https?:\/\/(?:www\.)?ggmax\.com\.br\/anuncio\/[a-zA-Z0-9\-_]+/i);
@@ -145,10 +267,7 @@ export function parseEmailContent(platform, parsedMail) {
       }
     }
 
-    // Remove colchetes ou barras invertidas do título
     announcementName = announcementName.replace(/[\[\]\\]/g, '').trim();
-
-    // 4. Nome do comprador
     buyerName = 'Possível Comprador (GGMAX)';
 
   } else if (platform === 'gamemarket') {
@@ -182,16 +301,17 @@ export function parseEmailContent(platform, parsedMail) {
     : announcementName.slice(0, 25).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   const uniqueId = `${platform}-${slugPart}`;
 
-  const dateObj = parsedMail.date ? new Date(parsedMail.date) : new Date();
-
   return {
     id: uniqueId,
     platform,
+    type: 'question',
+    orderId: null,
     receivedAt: dateObj.toISOString(),
     buyerName,
     announcementName,
     announcementLink,
-    answerLink
+    answerLink,
+    description: ''
   };
 }
 
@@ -315,18 +435,22 @@ export async function startBot() {
 
           console.log(`[BOT] 🔎 Inspecionando: [De: ${fromText}] [Assunto: ${subjectText}]`);
 
-          const platform = detectPlatform(fromText, subjectText, bodyText);
+          const detected = detectPlatform(fromText, subjectText, bodyText);
 
-          if (platform) {
-            console.log(`[BOT] 🎯 Pergunta detectada! Plataforma: [${platform.toUpperCase()}]`);
+          if (detected) {
+            const platform = typeof detected === 'object' ? detected.platform : detected;
+            const itemType = typeof detected === 'object' ? detected.type : 'question';
+            const labelType = itemType === 'mediation' ? '⚖️ MEDIAÇÃO / INTERVENÇÃO' : '❓ PERGUNTA';
 
-            const payload = parseEmailContent(platform, parsed);
+            console.log(`[BOT] 🎯 ${labelType} detectada! Plataforma: [${platform.toUpperCase()}]`);
+
+            const payload = parseEmailContent(detected, parsed);
             const ok = await sendToApi(payload);
 
             if (ok) {
               activeProcessedIds.add(msgId);
               await saveProcessedIds(activeProcessedIds);
-              console.log(`[BOT] 🎉 Pergunta "${payload.announcementName}" adicionada com sucesso ao painel!`);
+              console.log(`[BOT] 🎉 ${labelType} "${payload.announcementName}" adicionada com sucesso ao painel!`);
             }
           }
         }

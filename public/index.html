@@ -92,6 +92,19 @@
 
     <!-- Controls Bar (Responsive Grid/Flex for mobile) -->
     <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+      <!-- Night Mode Window Indicator -->
+      <div id="night-badge" class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20" title="Mensagens recebidas entre 23h e 06h de Brasília não penalizam sua pontuação">
+        <i class="fa-solid fa-moon text-indigo-400"></i>
+        <span id="night-text">Horário Ativo (SLA 1h)</span>
+      </div>
+
+      <!-- Prestige GM Modal Trigger Button -->
+      <button id="btn-prestige-modal" class="flex items-center justify-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 border border-amber-500/30 text-amber-300 px-3 py-2 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all" title="Ver regras do Selo Prestige GM, bônus de 1h e metas diárias">
+        <i class="fa-solid fa-crown text-amber-400"></i>
+        <span class="hidden sm:inline">Metas</span>
+        <span>Prestige GM</span>
+      </button>
+
       <!-- Desktop Status Badge -->
       <div id="connection-badge" class="hidden sm:flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-3 py-1.5 rounded-full text-xs font-semibold">
         <span class="w-2 h-2 rounded-full bg-rose-500 pulse-dot" id="connection-dot"></span>
@@ -105,7 +118,7 @@
       </button>
 
       <!-- Clear & Re-test Button -->
-      <button id="clear-all-btn" class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-rose-600/10 hover:bg-rose-600/20 active:scale-95 border border-rose-500/30 text-rose-400 hover:text-rose-300 px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all" title="Limpar todas as perguntas e forçar o bot a reler o Gmail agora">
+      <button id="clear-all-btn" class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-rose-600/10 hover:bg-rose-600/20 active:scale-95 border border-rose-500/30 text-rose-400 hover:text-rose-300 px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all" title="Limpar tudo e forçar o bot a reler o Gmail agora">
         <i class="fa-solid fa-trash-can text-xs"></i>
         <span>Limpar</span>
         <span class="hidden md:inline">& Re-testar</span>
@@ -118,32 +131,32 @@
     
     <!-- Stats Cards Overview (2x2 on mobile, 4 columns on desktop) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-      <!-- Stats 1: Total Pendentes -->
+      <!-- Stats 1: Total Perguntas Pendentes -->
       <div class="bg-brand-card border border-brand-border rounded-xl p-3.5 sm:p-5 flex items-center justify-between">
         <div>
-          <span class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider block">Pendentes</span>
+          <span class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider block">Perguntas</span>
           <h3 class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5" id="stats-pending">0</h3>
         </div>
         <div class="bg-amber-500/10 text-amber-400 p-2 sm:p-3 rounded-lg border border-amber-500/20 text-base sm:text-xl">
-          <i class="fa-solid fa-hourglass-half"></i>
+          <i class="fa-solid fa-comments"></i>
         </div>
       </div>
 
-      <!-- Stats 2: Perguntas Críticas (< 15 min ou Expiradas) -->
-      <div class="bg-brand-card border border-brand-border rounded-xl p-3.5 sm:p-5 flex items-center justify-between">
+      <!-- Stats 2: Mediações / Disputas Abertas -->
+      <div id="stats-card-mediations" class="bg-brand-card border border-brand-border rounded-xl p-3.5 sm:p-5 flex items-center justify-between transition-all">
         <div>
-          <span class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider block">Urgentes</span>
-          <h3 class="text-2xl sm:text-3xl font-extrabold text-rose-400 mt-0.5" id="stats-urgent">0</h3>
+          <span class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider block">Mediações</span>
+          <h3 class="text-2xl sm:text-3xl font-extrabold text-rose-400 mt-0.5" id="stats-mediations">0</h3>
         </div>
-        <div class="bg-rose-500/10 text-rose-400 p-2 sm:p-3 rounded-lg border border-rose-500/20 text-base sm:text-xl">
-          <i class="fa-solid fa-triangle-exclamation"></i>
+        <div class="bg-rose-500/10 text-rose-400 p-2 sm:p-3 rounded-lg border border-rose-500/20 text-base sm:text-xl" id="stats-icon-mediations">
+          <i class="fa-solid fa-scale-unbalanced"></i>
         </div>
       </div>
 
-      <!-- Stats 3: Total Respondidas -->
+      <!-- Stats 3: Total Respondidas / Resolvidas -->
       <div class="bg-brand-card border border-brand-border rounded-xl p-3.5 sm:p-5 flex items-center justify-between">
         <div>
-          <span class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider block">Respondidas</span>
+          <span class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider block">Resolvidas</span>
           <h3 class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5" id="stats-answered">0</h3>
         </div>
         <div class="bg-emerald-500/10 text-emerald-400 p-2 sm:p-3 rounded-lg border border-emerald-500/20 text-base sm:text-xl">
@@ -151,49 +164,154 @@
         </div>
       </div>
 
-      <!-- Stats 4: SLA Meta -->
+      <!-- Stats 4: SLA Prestige GM Meta -->
       <div class="bg-brand-card border border-brand-border rounded-xl p-3.5 sm:p-5 flex items-center justify-between">
         <div>
-          <span class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider block">Meta SLA</span>
-          <h3 class="text-sm sm:text-lg font-bold text-emerald-400 mt-0.5">Até 1 Hora</h3>
-          <span class="text-[10px] text-slate-400 block sm:inline">Tempo: <span id="dashboard-runtime" class="font-mono text-slate-300">00:00</span></span>
+          <span class="text-amber-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider block flex items-center gap-1">
+            <i class="fa-solid fa-crown text-[10px]"></i> Prestige GM
+          </span>
+          <h3 class="text-sm sm:text-lg font-bold text-emerald-400 mt-0.5">Até 1h (+3 pts)</h3>
+          <span class="text-[10px] text-slate-400 block sm:inline">Uptime: <span id="dashboard-runtime" class="font-mono text-slate-300">00:00</span></span>
         </div>
-        <div class="bg-blue-500/10 text-blue-400 p-2 sm:p-3 rounded-lg border border-blue-500/20 text-base sm:text-xl">
-          <i class="fa-solid fa-shield-halved"></i>
+        <div class="bg-amber-500/10 text-amber-400 p-2 sm:p-3 rounded-lg border border-amber-500/20 text-base sm:text-xl">
+          <i class="fa-solid fa-bolt"></i>
         </div>
       </div>
     </div>
 
-    <!-- Filter Tabs (Equal 50% width on mobile) -->
-    <div class="flex border-b border-brand-border text-xs sm:text-sm font-semibold">
-      <button id="tab-pending" class="flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 sm:py-3 border-b-2 border-emerald-500 text-emerald-400 transition-all flex items-center justify-center gap-1.5 sm:gap-2">
-        <i class="fa-solid fa-hourglass-half text-xs"></i>
-        <span>Pendentes</span>
-        <span class="bg-amber-500/20 text-amber-300 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs" id="badge-pending-count">0</span>
+    <!-- Filter Tabs (3 Tabs: Perguntas, Mediações, Resolvidas) -->
+    <div class="flex border-b border-brand-border text-xs sm:text-sm font-semibold overflow-x-auto no-scrollbar">
+      <button id="tab-questions" class="flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 sm:py-3 border-b-2 border-emerald-500 text-emerald-400 transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-comments text-xs"></i>
+        <span>Perguntas</span>
+        <span class="bg-amber-500/20 text-amber-300 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold" id="badge-questions-count">0</span>
       </button>
-      <button id="tab-answered" class="flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 sm:py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center gap-1.5 sm:gap-2">
+      
+      <button id="tab-mediations" class="flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 sm:py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-scale-unbalanced text-xs text-rose-400"></i>
+        <span>Mediações</span>
+        <span class="bg-rose-500/20 text-rose-300 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold" id="badge-mediations-count">0</span>
+      </button>
+
+      <button id="tab-resolved" class="flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 sm:py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
         <i class="fa-solid fa-box-archive text-xs"></i>
-        <span>Respondidas</span>
-        <span class="bg-zinc-800 text-slate-400 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs" id="badge-answered-count">0</span>
+        <span>Resolvidas</span>
+        <span class="bg-zinc-800 text-slate-400 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs" id="badge-resolved-count">0</span>
       </button>
     </div>
 
-    <!-- Questions Grid / List -->
+    <!-- Items Grid / List -->
     <div class="flex-1 flex flex-col">
       <!-- Empty state -->
       <div id="empty-state" class="flex-1 flex flex-col items-center justify-center py-12 sm:py-16 px-4 bg-brand-card/40 border border-brand-border border-dashed rounded-2xl text-center">
         <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-3 text-xl sm:text-2xl">
           <i class="fa-regular fa-folder-open"></i>
         </div>
-        <h4 class="text-sm sm:text-base font-bold text-white">Nenhuma pergunta pendente</h4>
-        <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-sm">Perguntas da GGMAX ou GameMarket aparecerão aqui automaticamente com alarme sonoro.</p>
+        <h4 class="text-sm sm:text-base font-bold text-white" id="empty-state-title">Nenhum item pendente</h4>
+        <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-sm" id="empty-state-desc">Perguntas ou mediações aparecerão aqui automaticamente com alarme sonoro.</p>
       </div>
 
-      <!-- Question List Container (1 col on mobile, 2 on tablet, 3 on desktop) -->
+      <!-- Question/Mediation List Container -->
       <div id="questions-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6 hidden">
         <!-- Rendered dynamically in app.js -->
       </div>
     </div>
+
+  </main>
+
+  <!-- Modal: Diretrizes & Metas do Selo Prestige GM -->
+  <div id="prestige-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden transition-opacity">
+    <div class="bg-[#0f172a] border border-amber-500/30 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-5 sm:p-7 relative text-slate-200">
+      
+      <!-- Close Button -->
+      <button id="btn-close-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <!-- Modal Header -->
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/40 flex items-center justify-center text-amber-400 text-2xl shadow-lg shadow-amber-500/10">
+          <i class="fa-solid fa-crown"></i>
+        </div>
+        <div>
+          <h3 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <span>Selo Prestige GM & Política de Respostas</span>
+          </h3>
+          <p class="text-xs text-amber-400/90 font-medium">A certificação mais exclusiva da GameMarket para vendedores de elite</p>
+        </div>
+      </div>
+
+      <!-- Prestige Benefits -->
+      <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 sm:p-4 mb-5">
+        <h4 class="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-1.5 mb-2">
+          <i class="fa-solid fa-gem"></i>
+          <span>Vantagens do Selo Prestige GM:</span>
+        </h4>
+        <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+          <li><strong>Taxa de Venda Reduzida:</strong> Apenas 10% (em vez da taxa padrão de 13%).</li>
+          <li><strong>Selo Dourado Exclusivo:</strong> Destacado em todas as páginas e perfil público.</li>
+          <li><strong>Prioridade Máxima:</strong> Posições superiores nas pesquisas e prioridade em apoio e moderação.</li>
+        </ul>
+      </div>
+
+      <!-- Critical Rules Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+        <!-- Rule 1: Tempo de Resposta -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
+          <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs sm:text-sm mb-1">
+            <i class="fa-solid fa-bolt"></i>
+            <span>Tempo de Resposta</span>
+          </div>
+          <p class="text-[11px] text-slate-300">
+            <strong>Até 1 hora:</strong> Bônus diário máximo (+3 pontos todos os dias).<br>
+            <strong>Até 3 horas:</strong> Pontuação diária positiva.<br>
+            <strong class="text-rose-400">Nunca passar de 4 horas</strong> para evitar degradação de pontuação.
+          </p>
+        </div>
+
+        <!-- Rule 2: Horário Noturno -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
+          <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs sm:text-sm mb-1">
+            <i class="fa-solid fa-moon"></i>
+            <span>Janela Noturna Protegida</span>
+          </div>
+          <p class="text-[11px] text-slate-300">
+            Mensagens e perguntas recebidas durante a noite (<strong>das 23h às 06h de Brasília</strong>) <strong>NÃO penalizam</strong> seu histórico de resposta!
+          </p>
+        </div>
+
+        <!-- Rule 3: Mediações & Disputas -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
+          <div class="flex items-center gap-2 text-rose-400 font-bold text-xs sm:text-sm mb-1">
+            <i class="fa-solid fa-scale-unbalanced"></i>
+            <span>Mediações Perdidas &lt; 3%</span>
+          </div>
+          <p class="text-[11px] text-slate-300">
+            No máximo <strong>3% das mediações</strong> podem ser perdidas para reembolso. Responda imediatamente para tentar conciliação com o comprador antes da decisão da moderação!
+          </p>
+        </div>
+
+        <!-- Rule 4: Taxa de Resposta & Reembolso -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
+          <div class="flex items-center gap-2 text-blue-400 font-bold text-xs sm:text-sm mb-1">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>Taxa & Reembolsos</span>
+          </div>
+          <p class="text-[11px] text-slate-300">
+            Manter <strong>taxa de resposta acima de 95%</strong> de todas as conversas e <strong>no máximo 10% de pedidos reembolsados</strong>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <div class="text-right">
+        <button id="btn-ok-modal" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-emerald-500/20">
+          Entendido, vamos manter a pontuação máxima!
+        </button>
+      </div>
+
+    </div>
+  </div>
 
   </main>
 

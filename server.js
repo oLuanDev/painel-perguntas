@@ -64,9 +64,9 @@ function normalizeLink(link) {
   return link.replace(/[\]\)\>\s]+$/, '').trim().toLowerCase();
 }
 
-// 2. POST /api/questions - Add/Update a question with strict deduplication
+// 2. POST /api/questions - Add/Update a question or mediation with strict deduplication
 app.post('/api/questions', async (req, res) => {
-  const { id, platform, receivedAt, buyerName, announcementName, announcementLink, answerLink } = req.body;
+  const { id, platform, type, orderId, receivedAt, buyerName, announcementName, announcementLink, answerLink, description } = req.body;
 
   if (!id || !platform || !buyerName || !announcementName || !announcementLink || !answerLink) {
     return res.status(400).json({ error: 'Faltando campos obrigatórios no payload.' });
@@ -76,44 +76,59 @@ app.post('/api/questions', async (req, res) => {
   const cleanAnnouncementLink = (announcementLink || '').replace(/[\]\)\>\s]+$/, '').trim();
   const cleanAnswerLink = (answerLink || '').replace(/[\]\)\>\s]+$/, '').trim();
   const cleanTitle = (announcementName || '').replace(/[\[\]\\]/g, '').trim();
+  const itemType = type || 'question';
 
   const questions = await readQuestions();
 
   // DEDUPLICAÇÃO INTELIGENTE:
-  // Se já existe uma pergunta com o mesmo ID OU para o mesmo anúncio pendente, não cria card duplicado!
-  const existingIndex = questions.findIndex(q =>
-    q.id === id ||
-    (normalizeLink(q.announcementLink) === normalizeLink(cleanAnnouncementLink) && q.status === 'pending')
-  );
+  // Se for mediação: deduplica por id OU por (platform + orderId) se pendente
+  // Se for pergunta: deduplica por id OU por anúncio pendente
+  const existingIndex = questions.findIndex(q => {
+    if (q.id === id) return true;
+    if (itemType === 'mediation' && q.type === 'mediation' && q.status === 'pending') {
+      return (orderId && q.orderId && q.orderId.toUpperCase() === orderId.toUpperCase()) ||
+             (normalizeLink(q.announcementLink) === normalizeLink(cleanAnnouncementLink));
+    }
+    if (itemType === 'question' && q.type !== 'mediation' && q.status === 'pending') {
+      return normalizeLink(q.announcementLink) === normalizeLink(cleanAnnouncementLink);
+    }
+    return false;
+  });
 
   const timestamp = receivedAt || new Date().toISOString();
 
   let questionObj;
 
   if (existingIndex !== -1) {
-    // Atualiza a pergunta existente sem duplicar na tela
+    // Atualiza o item existente sem duplicar na tela
     const existing = questions[existingIndex];
     questionObj = {
       ...existing,
       platform,
+      type: itemType,
+      orderId: orderId || existing.orderId || null,
       receivedAt: timestamp,
       buyerName,
       announcementName: cleanTitle,
       announcementLink: cleanAnnouncementLink,
       answerLink: cleanAnswerLink,
+      description: description || existing.description || '',
       status: req.body.status || existing.status || 'pending'
     };
     questions[existingIndex] = questionObj;
   } else {
-    // Nova pergunta única
+    // Novo item único
     questionObj = {
       id,
       platform,
+      type: itemType,
+      orderId: orderId || null,
       receivedAt: timestamp,
       buyerName,
       announcementName: cleanTitle,
       announcementLink: cleanAnnouncementLink,
       answerLink: cleanAnswerLink,
+      description: description || '',
       status: req.body.status || 'pending'
     };
     questions.push(questionObj);
