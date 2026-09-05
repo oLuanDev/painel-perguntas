@@ -478,22 +478,22 @@ export async function startBot() {
   console.log(`[BOT] Conectando a ${process.env.IMAP_HOST || 'imap.gmail.com'} como ${user}...`);
   await client.connect();
   console.log(`[BOT] ✅ Conexão IMAP estabelecida com sucesso!`);
-  console.log(`[BOT] ⏱️ Monitoramento ativo: lendo a caixa de entrada a cada 2 minutos.`);
+  console.log(`[BOT] ⏱️ Monitoramento ativo: lendo a caixa de entrada a cada 60 segundos (1 minuto).`);
 
   // 1. Checagem inicial imediata
   await checkMailbox();
 
-  // 2. Checagem periódica a cada 2 minutos (120 segundos)
+  // 2. Checagem periódica a cada 60 segundos (1 minuto)
   setInterval(async () => {
     try {
       if (client.usable) {
-        console.log('[BOT] ⏱️ [Ciclo de 2 min] Verificando e-mails da GGMAX e GameMarket...');
+        console.log('[BOT] ⏱️ [Ciclo de 60s] Verificando e-mails da GGMAX e GameMarket...');
         await checkMailbox();
       }
     } catch (err) {
-      console.error('[BOT] Erro na verificação periódica de 2 minutos:', err.message);
+      console.error('[BOT] Erro na verificação periódica de 60 segundos:', err.message);
     }
-  }, 2 * 60 * 1000);
+  }, 60 * 1000);
 
   // Escuta contínua de novos e-mails via IDLE
   while (client.usable) {
