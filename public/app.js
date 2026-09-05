@@ -253,18 +253,40 @@ function updateAllCountdowns() {
   }
 }
 
-// Fetch Initial Data
-async function fetchQuestions() {
+// Fetch Initial Data & Realtime Sync (Sem precisar de F5!)
+async function fetchQuestions(isBackgroundSync = false) {
   try {
     const res = await fetch('/api/questions');
     if (res.ok) {
-      questions = await res.json();
-      renderUI();
+      const updatedList = await res.json();
+
+      if (isBackgroundSync && questions.length > 0) {
+        const existingIds = new Set(questions.map(q => q.id));
+        const brandNew = updatedList.filter(q => !existingIds.has(q.id) && q.status === 'pending');
+
+        if (brandNew.length > 0) {
+          console.log(`[REALTIME] 🔔 ${brandNew.length} nova(s) pergunta(s) recebida(s)! Tocando alerta sonoro...`);
+          playChime();
+        }
+      }
+
+      // Se houver qualquer alteração na lista, renderiza imediatamente
+      const currentJson = JSON.stringify(questions);
+      const newJson = JSON.stringify(updatedList);
+      if (currentJson !== newJson) {
+        questions = updatedList;
+        renderUI();
+      }
     }
   } catch (err) {
     console.error('Erro ao buscar perguntas:', err);
   }
 }
+
+// Sincronização contínua a cada 3 segundos (garante que caia sozinho na tela)
+setInterval(() => {
+  fetchQuestions(true);
+}, 3000);
 
 // Send Status Toggle (PATCH)
 async function toggleQuestionStatus(id, currentStatus) {

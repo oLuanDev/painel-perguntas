@@ -144,10 +144,14 @@ app.patch('/api/questions/:id', async (req, res) => {
 // 4. GET /api/questions/stream - Server-Sent Events endpoint
 app.get('/api/questions/stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
 
-  // Keep-alive header for some proxies
+  // Keep-alive header for proxies
   res.write(': ok\n\n');
 
   sseClients.push(res);
